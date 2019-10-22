@@ -1,0 +1,32 @@
+apply plugin: 'java'
+apply plugin: 'jacoco'
+apply plugin: 'application'
+
+mainClassName = 'ch.psi.athos.AthosCameras'
+version = '1.0.0' 
+ext.timestamp = new Date().format("yyMMddHHmm")
+ext.addopens = 'java.base/sun.nio.ch java.base/java.io java.desktop/sun.awt java.desktop/javax.swing.text.html java.desktop/sun.swing java.base/jdk.internal.loader'
+
+
+repositories {
+    jcenter()
+    maven { url "http://maven.imagej.net/content/repositories/public/" }     
+    maven { url "https://dl.bintray.com/paulscherrerinstitute/hltools/" }    
+}
+
+dependencies {
+    testCompile 'junit:junit:4.12'
+    compile 'ch.psi:pshell:1.12.0'
+}
+
+jar {
+    baseName = project.name
+    manifest {
+        attributes (
+            'Main-Class': mainClassName, 
+            'Implementation-Version': version,
+            'Build-Time': timestamp,
+            'Add-Opens': addopens
+        )
+    }       
+}
