@@ -3,8 +3,10 @@ package ch.psi.athos;
 import ch.psi.pshell.bs.PipelineServer;
 import ch.psi.utils.swing.StandardDialog;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -12,6 +14,7 @@ import javax.swing.table.DefaultTableModel;
  */
 public class DataSelector extends StandardDialog {
     final DefaultTableModel model;
+    List<String> selected = new ArrayList();
     /**
      * Creates new form DataSelector
      */
@@ -21,21 +24,35 @@ public class DataSelector extends StandardDialog {
         model = (DefaultTableModel) table.getModel();
     }
     
-    public void set(PipelineServer server, String cameraName, List<String> enabled){
-        /*
-            String instanceName = cameraName + AthosCameras.pipelineSuffixData + "info";
-            HashMap config = new HashMap<>();
-            config.put("camera_name", cameraName);                    
-            if (server.getInstances().contains(instanceName)) {
-                server.start(instanceName, true);
-            } else {                                    
-                List<String> ret = server.createFromConfig(cfg, instanceName);
-                String instance_id = ret.get(0);
-                server.start(instance_id, true);
-            }
-                                
-                     */           
+    public void set(String serverUrl, String pipelineName) throws Exception{
+        
+        try (PipelineServer server = new PipelineServer("Data pipeline", serverUrl)){
+            server.initialize();
+            Map<String, Object> cfg = server.getInstanceConfig(pipelineName);
+            List<String> include = (List<String>) cfg.get("include");
+            String cameraName = (String) cfg.get("camera_name");
             
+                        
+            String instanceName = cameraName + AthosCameras.pipelineSuffixData + "info";
+            try{                                                
+                if (!server.getInstances().contains(instanceName)) {
+                    HashMap config = new HashMap<>();
+                    config.put("camera_name", cameraName);
+                    server.createFromConfig(config, instanceName);                    
+                }
+                server.start(instanceName, true);                
+                server.getStream().waitCacheChange(10000);
+                List<String> ids = server.getStream().getIdentifiers();
+                Collections.sort(ids);
+                model.setRowCount(ids.size());
+                for (int i=0; i< ids.size(); i++){
+                    model.setValueAt(ids.get(i), i, 0);
+                    model.setValueAt(include.contains(ids.get(i)), i, 1);
+                }            
+            } finally{
+                server.stop();
+            }
+        }        
     }
     
     public List<String> getEnabled(){
@@ -59,6 +76,8 @@ public class DataSelector extends StandardDialog {
 
         jScrollPane1 = new javax.swing.JScrollPane();
         table = new javax.swing.JTable();
+        buttonCancel = new javax.swing.JButton();
+        buttonOk = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -87,21 +106,63 @@ public class DataSelector extends StandardDialog {
         });
         jScrollPane1.setViewportView(table);
 
+        buttonCancel.setText("Cancel");
+        buttonCancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonCancelActionPerformed(evt);
+            }
+        });
+
+        buttonOk.setText("OK");
+        buttonOk.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonOkActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 322, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap(72, Short.MAX_VALUE)
+                .addComponent(buttonCancel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(buttonOk)
+                .addContainerGap(72, Short.MAX_VALUE))
         );
+
+        layout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {buttonCancel, buttonOk});
+
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 234, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 0, Short.MAX_VALUE))
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 233, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(buttonOk)
+                        .addContainerGap())
+                    .addComponent(buttonCancel, javax.swing.GroupLayout.Alignment.TRAILING)))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void buttonCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonCancelActionPerformed
+        this.cancel();
+    }//GEN-LAST:event_buttonCancelActionPerformed
+
+    private void buttonOkActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonOkActionPerformed
+        selected.clear();
+        for (int i=0; i< model.getRowCount(); i++){
+            if (Boolean.TRUE.equals(model.getValueAt(i, 1))){
+                selected.add(String.valueOf(model.getValueAt(i, 0)));
+            }
+        }
+        this.accept();
+    }//GEN-LAST:event_buttonOkActionPerformed
 
     /**
      * @param args the command line arguments
@@ -146,6 +207,8 @@ public class DataSelector extends StandardDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton buttonCancel;
+    private javax.swing.JButton buttonOk;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTable table;
     // End of variables declaration//GEN-END:variables

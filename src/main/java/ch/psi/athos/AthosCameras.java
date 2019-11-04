@@ -19,6 +19,7 @@ import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
@@ -39,11 +40,14 @@ public class AthosCameras extends Panel {
     String imageInstanceName;
     String dataInstanceName;
     String cameraName;
-    String persistFile = "{context}/AthosCameras";
+    String persistFile = "{context}/AthosCameras";    
 
     final static  String CAMERA_DEVICE_NAME = "AthosCamera";
     static String pipelineSuffixData = "_acd";
     static String pipelineSuffixImage = "_aci";
+    static double imageFrameRate = 2.1;
+    
+    boolean dataChanged;
     
     boolean persisting;
     
@@ -86,6 +90,39 @@ public class AthosCameras extends Panel {
     protected void doUpdate() {
     }
 
+    String getImagePipeline(){
+        if (cameraName==null){
+            return null;
+        }
+        return cameraName + pipelineSuffixImage;
+    }
+    
+    String getDataPipeline(){
+        if (cameraName==null){
+            return null;
+        }
+        return cameraName + pipelineSuffixData;
+    }
+    
+    String getDataPipelineInstance(){
+        if (cameraName==null){
+            return null;
+        }
+        return cameraName + pipelineSuffixData + "1";
+    }
+    
+    
+    void setDataFields(List<String> fields) throws IOException{
+        if (cameraName!=null){
+            HashMap<String, Object> config = new HashMap<>();
+            config.put("camera_name", cameraName);
+            config.put("include", fields.toArray(new String[0]));
+            dataPipeline.setInstanceConfig(config);
+            dataPipeline.savePipelineConfig(cameraName, config);        
+            dataChanged = true;
+        }
+    }
+
     
     void setCamera(String cameraName) throws IOException, InterruptedException {
         System.out.println("Initializing: " + cameraName);
@@ -97,19 +134,18 @@ public class AthosCameras extends Panel {
         textCamera.setText((cameraName == null) ? "" : cameraName);
         if (cameraName == null) {
             return;
-        }
-        
+        }        
 
         System.out.println("Setting camera: " + cameraName );
         try{
                        
-            String pipelineName = cameraName + pipelineSuffixImage; 
+            String pipelineName = getImagePipeline(); 
             System.out.println("Creating pipeline: " + pipelineName);
             HashMap<String, Object> config = new HashMap<>();
             config.put("camera_name", cameraName);
             config.put("name", pipelineName);
             config.put("function", "transparent");
-            config.put("max_frame_rate" , 2.1);
+            config.put("max_frame_rate" , imageFrameRate);
             viewer.setStream(config);  
             
             dataPipeline = new PipelineServer("Data pipeline", viewer.getServer());
@@ -117,9 +153,9 @@ public class AthosCameras extends Panel {
             dataPipeline.assertInitialized();
             System.out.println("Data pipeline initialization OK");
             
-            pipelineName = cameraName + pipelineSuffixData;
-            dataInstanceName = cameraName + pipelineSuffixData + "1";
-            if (!dataPipeline.getPipelines().contains(pipelineSuffixData)) {
+            pipelineName = getDataPipeline();
+            dataInstanceName = getDataPipelineInstance();
+            if (!dataPipeline.getPipelines().contains(pipelineName)) {
                 System.out.println("Creating pipeline: " + pipelineName);
                 config = new HashMap<>();
                 config.put("camera_name", cameraName);
@@ -152,6 +188,10 @@ public class AthosCameras extends Panel {
         DefaultTableModel model = (DefaultTableModel) table.getModel();
         List<String> ids = value.getIdentifiers();
         List values = value.getValues();
+        if (dataChanged){
+            //Collections.sort(ids, c);
+            dataChanged = false;
+        }
         if (model.getRowCount()!=ids.size()){
             model.setRowCount(ids.size());
             for (int i=0; i<ids.size();i++){
@@ -173,6 +213,7 @@ public class AthosCameras extends Panel {
         System.out.println("startRecording");
         getContext().startExecution(CommandSource.plugin, null, cameraName,null, false);
         getContext().setExecutionPar("name", cameraName);
+        getContext().setExecutionPar("layout", "default");
         getContext().setExecutionPar("open", true);
         scan=  new MonitorScan(dataPipeline.getStream(), dataPipeline.getStream().getReadables().toArray(new ch.psi.pshell.device.Readable[0]), -1, -1);
         Threading.getFuture(() ->scan.start());          
@@ -202,7 +243,10 @@ public class AthosCameras extends Panel {
                                         "-p=ch.psi.athos.AthosCameras", 
                                       }, 
                           args);
-        App.main(args);  
+        App.main(args);
+        if (App.hasArgument("frameRate")){
+            imageFrameRate = Double.parseDouble(App.getArgumentValue("frameRate"));
+        }
     }
     
     
@@ -452,7 +496,20 @@ public class AthosCameras extends Panel {
     }//GEN-LAST:event_buttonOpenActionPerformed
 
     private void buttonSelectActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSelectActionPerformed
-        // TODO add your handling code here:
+        try{
+            String instance = getDataPipelineInstance();
+            if (instance != null){
+                DataSelector dlg = new DataSelector(getTopLevel(), true);            
+                dlg.setLocationRelativeTo(getTopLevel());
+                dlg.set(viewer.getServer(), instance);
+                dlg.setVisible(true);
+                if (dlg.getResult()){
+                    setDataFields(dlg.selected);
+                }
+            }
+        } catch (Exception ex){
+            this.showException(ex);
+        }
     }//GEN-LAST:event_buttonSelectActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
