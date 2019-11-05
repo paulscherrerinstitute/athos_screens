@@ -2,8 +2,10 @@ apply plugin: 'java'
 apply plugin: 'jacoco'
 apply plugin: 'application'
 
-mainClassName = 'ch.psi.athos.AthosCameras'
+
 version = '1.0.0' 
+
+mainClassName = 'ch.psi.athos.AthosCameras'
 ext.timestamp = new Date().format("yyMMddHHmm")
 ext.addopens = 'java.base/sun.nio.ch java.base/java.io java.desktop/sun.awt java.desktop/javax.swing.text.html java.desktop/sun.swing java.base/jdk.internal.loader'
 
@@ -29,4 +31,23 @@ jar {
             'Add-Opens': addopens
         )
     }       
+}
+
+task fatJar(type: Jar, dependsOn: jar) {
+    classifier 'fat'
+    duplicatesStrategy = 'exclude'  
+    manifest {
+        attributes (
+            'Main-Class': mainClassName, 
+            'Implementation-Version': version,
+            'Build-Time': timestamp,
+            'Add-Opens': addopens
+        )
+    }    
+    doFirst {
+        from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } } 
+    }
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA', 'MANIFEST.MF', '*.INFO' , 'LICENSE'   
+        
+    with jar
 }

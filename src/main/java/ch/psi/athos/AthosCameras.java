@@ -147,7 +147,6 @@ public class AthosCameras extends Panel {
         model.setRowCount(0);
         updateButtons();
 
-        textCamera.setText((cameraName == null) ? "" : cameraName);
         if (cameraName == null) {
             return;
         }        
@@ -163,8 +162,8 @@ public class AthosCameras extends Panel {
             config.put("function", "transparent");
             config.put("max_frame_rate" , imageFrameRate);
             viewer.setStream(config);  
-            
-            dataPipeline = new PipelineServer("Data pipeline", viewer.getServer());
+
+            dataPipeline = new PipelineServer("Data pipeline", viewer.getServerUrl());
             dataPipeline.initialize();
             dataPipeline.assertInitialized();
             System.out.println("Data pipeline initialization OK");
@@ -177,6 +176,7 @@ public class AthosCameras extends Panel {
                 config.put("camera_name", cameraName);
                 config.put("include", new String[]{"x_center_of_mass", "y_center_of_mass",
                                                    "x_fit_mean", "y_fit_mean"});
+                config.put("image_region_of_interest", viewer.getServer().getRoi());
                 //server.createFromConfig(config, pipelineName);
                 dataPipeline.savePipelineConfig(pipelineName, config);
             }
@@ -188,6 +188,22 @@ public class AthosCameras extends Panel {
                     updateData((StreamValue)value);                    
                 }
             });
+            
+            viewer.getServer().setPipelineServerListener((cfg)->{
+                try{
+                    if (cfg.containsKey("image_region_of_interest")){                        
+                        int[] roi = (int[]) cfg.get("image_region_of_interest");
+                        if (roi==null){
+                            dataPipeline.resetRoi();
+                        } else {
+                            dataPipeline.setRoi(roi);
+                        }
+                    }
+                } catch (Exception ex){
+                    showException(ex);
+                }
+            });
+                        
             
         } catch (Exception ex) {
             showException(ex);
@@ -348,8 +364,6 @@ public class AthosCameras extends Panel {
         table = new javax.swing.JTable();
         buttonSelect = new javax.swing.JButton();
         buttonPlot = new javax.swing.JButton();
-        jPanel4 = new javax.swing.JPanel();
-        textCamera = new javax.swing.JTextField();
         viewer = new ch.psi.pshell.bs.StreamCameraViewer();
 
         jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Data Recording"));
@@ -523,27 +537,6 @@ public class AthosCameras extends Panel {
                 .addContainerGap())
         );
 
-        jPanel4.setBorder(javax.swing.BorderFactory.createTitledBorder("Camera"));
-
-        textCamera.setHorizontalAlignment(javax.swing.JTextField.CENTER);
-
-        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
-        jPanel4.setLayout(jPanel4Layout);
-        jPanel4Layout.setHorizontalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(textCamera)
-                .addContainerGap())
-        );
-        jPanel4Layout.setVerticalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(textCamera, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
-        );
-
         viewer.setLocalFit(java.lang.Boolean.TRUE);
         viewer.setServer("localhost:8889");
         viewer.setShowFit(true);
@@ -557,17 +550,13 @@ public class AthosCameras extends Panel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                        .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                    .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -609,7 +598,7 @@ public class AthosCameras extends Panel {
             if (instance != null){
                 DataSelector dlg = new DataSelector(getTopLevel(), true);            
                 dlg.setLocationRelativeTo(getTopLevel());
-                dlg.set(viewer.getServer(), instance);
+                dlg.set(viewer.getServerUrl(), instance);
                 dlg.setVisible(true);
                 if (dlg.getResult()){
                     setDataFields(dlg.selected);
@@ -648,12 +637,10 @@ public class AthosCameras extends Panel {
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
-    private javax.swing.JPanel jPanel4;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel labelRecording;
     private javax.swing.JScrollPane scrollFile;
     private javax.swing.JTable table;
-    private javax.swing.JTextField textCamera;
     private javax.swing.JTextField textFile;
     private ch.psi.pshell.bs.StreamCameraViewer viewer;
     // End of variables declaration//GEN-END:variables
