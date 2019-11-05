@@ -538,7 +538,7 @@ public class AthosCameras extends Panel {
         );
 
         viewer.setLocalFit(java.lang.Boolean.TRUE);
-        viewer.setServer("localhost:8889");
+        viewer.setServerUrl("localhost:8889");
         viewer.setShowFit(true);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);

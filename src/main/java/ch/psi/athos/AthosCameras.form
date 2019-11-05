@@ -268,7 +268,7 @@
     <Component class="ch.psi.pshell.bs.StreamCameraViewer" name="viewer">
       <Properties>
         <Property name="localFit" type="java.lang.Boolean" value="true"/>
-        <Property name="server" type="java.lang.String" value="localhost:8889"/>
+        <Property name="serverUrl" type="java.lang.String" value="localhost:8889"/>
         <Property name="showFit" type="boolean" value="true"/>
       </Properties>
     </Component>
