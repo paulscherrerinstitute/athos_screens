@@ -163,7 +163,7 @@ public class AthosCameras extends Panel {
             config.put("max_frame_rate" , imageFrameRate);
             viewer.setStream(config);  
 
-            dataPipeline = new PipelineServer("Data pipeline", viewer.getServerUrl());
+            dataPipeline = new PipelineServer("image", viewer.getServerUrl()); 
             dataPipeline.initialize();
             dataPipeline.assertInitialized();
             System.out.println("Data pipeline initialization OK");
@@ -238,6 +238,21 @@ public class AthosCameras extends Panel {
         }
     }    
     
+    ch.psi.pshell.device.Readable[] getReadables(){
+        ch.psi.pshell.device.Readable[] ret = dataPipeline.getStream().getReadables().toArray(new ch.psi.pshell.device.Readable[0]);
+        String[] ids = dataPipeline.getStream().getIdentifiers().toArray(new String[0]);
+        String[] imageIds = new String[]{"image", "width", "height"};
+        if (Arr.containsAllEqual(ids, imageIds)){
+            for  (ch.psi.pshell.device.Readable r : Arr.copy(ret)){
+                if (Arr.containsEqual(imageIds, r.getName())){
+                    ret = Arr.remove(ret, r);
+                }
+            }
+            ret = Arr.append(ret, dataPipeline.getDataMatrix());
+        }       
+        return ret;
+    }
+    
     MonitorScan scan;
     
     void startRecording() throws Exception{
@@ -246,7 +261,7 @@ public class AthosCameras extends Panel {
         getContext().setExecutionPar("name", cameraName);
         //getContext().setExecutionPar("layout", "default");
         getContext().setExecutionPar("open", true);
-        scan=  new MonitorScan(dataPipeline.getStream(), dataPipeline.getStream().getReadables().toArray(new ch.psi.pshell.device.Readable[0]), -1, -1);
+        scan=  new MonitorScan(dataPipeline.getStream(), getReadables(), -1, -1);
         Threading.getFuture(() ->scan.start());          
         textFile.setText(getContext().getExecutionPars().getPath());
         SwingUtilities.invokeLater(()->{
