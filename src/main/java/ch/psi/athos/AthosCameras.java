@@ -3,6 +3,7 @@ package ch.psi.athos;
 import ch.psi.pshell.bs.PipelineServer;
 import ch.psi.pshell.bs.StreamValue;
 import ch.psi.pshell.core.CommandSource;
+import ch.psi.pshell.core.Context;
 import ch.psi.pshell.device.Device;
 import ch.psi.pshell.device.DeviceAdapter;
 import ch.psi.pshell.device.DeviceListener;
@@ -28,6 +29,7 @@ import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
@@ -67,15 +69,21 @@ public class AthosCameras extends Panel {
     Map<String, JDialog> deviceDialogs = new HashMap<>();
     Map<String, Object> dataPipelineConfig;
     
+    String remoteData;
+    
     public AthosCameras() {
         initComponents();
         model = (DefaultTableModel) table.getModel();
         labelRecording.setVisible(false);
         labelSrvRecording.setVisible(false);
         buttonOpen.setEnabled(false);
+        buttonSrvOpen.setEnabled(false);
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
-        this.setPersistedComponents(new Component[]{textSrvFile});
+        setPersistedComponents(new Component[]{});
+        remoteData = App.getArgumentValue("remote_data");
+        panelSrvRec.setVisible(remoteData!=null);
     }
+        
     
     ImageIcon getIcon(String name){
         return MainFrame.searchIcon(name);
@@ -301,7 +309,10 @@ public class AthosCameras extends Panel {
         stopSrvRecording();
         HashMap<String, Object> config = (HashMap<String, Object>) ((HashMap)dataPipelineConfig).clone();
         config.put("mode", "FILE");
-        config.put("file", textSrvFile.getText());
+        String fileName = Context.getInstance().getSetup().expandPath("{date}_{time}_"+cameraName, System.currentTimeMillis());       
+        fileName = Paths.get(remoteData, fileName + ".h5").toString();
+        textSrvFile.setText(fileName);
+        config.put("file", fileName);
         config.put("layout", "FLAT");
         config.put("localtime" , false);        
         config.put("change" , false);      
@@ -309,6 +320,7 @@ public class AthosCameras extends Panel {
         savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl()); 
         savePipeline.createFromConfig(config, instanceName);
         savePipeline.start(instanceName, true);   
+        buttonSrvOpen.setEnabled(true);
     }
     
     void stopSrvRecording() throws Exception{
@@ -325,8 +337,8 @@ public class AthosCameras extends Panel {
     }    
     
 
-    void openFile() throws Exception{
-        String filename = textFile.getText();
+    void openFile(boolean server) throws Exception{
+        String filename = server ? textSrvFile.getText() : textFile.getText();
         DataPanel panel = DataPanel.create(new File(filename));
         SwingUtils.showDialog(getTopLevel(), filename, new Dimension(600,400), panel);        
     }
@@ -426,7 +438,7 @@ public class AthosCameras extends Panel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jPanel1 = new javax.swing.JPanel();
+        panelRec = new javax.swing.JPanel();
         buttonRec = new javax.swing.JToggleButton();
         buttonStop = new javax.swing.JButton();
         jPanel3 = new javax.swing.JPanel();
@@ -434,22 +446,23 @@ public class AthosCameras extends Panel {
         buttonOpen = new javax.swing.JButton();
         scrollFile = new javax.swing.JScrollPane();
         textFile = new javax.swing.JTextField();
-        jPanel2 = new javax.swing.JPanel();
+        panelData = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         table = new javax.swing.JTable();
         buttonSelect = new javax.swing.JButton();
         buttonPlot = new javax.swing.JButton();
         buttonDataPause = new javax.swing.JToggleButton();
         viewer = new ch.psi.pshell.bs.StreamCameraViewer();
-        jPanel6 = new javax.swing.JPanel();
+        panelSrvRec = new javax.swing.JPanel();
         buttonSrvRec = new javax.swing.JToggleButton();
         buttonSrvStop = new javax.swing.JButton();
         jPanel7 = new javax.swing.JPanel();
         labelSrvRecording = new javax.swing.JLabel();
         scrollFile1 = new javax.swing.JScrollPane();
         textSrvFile = new javax.swing.JTextField();
+        buttonSrvOpen = new javax.swing.JButton();
 
-        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Local Data Recording"));
+        panelRec.setBorder(javax.swing.BorderFactory.createTitledBorder("Local Data Recording"));
 
         buttonRec.setIcon(getIcon("Rec"));
         buttonRec.setToolTipText("Start Data Recording");
@@ -489,7 +502,7 @@ public class AthosCameras extends Panel {
                 .addContainerGap())
         );
 
-        buttonOpen.setText("Open Data File");
+        buttonOpen.setText("Open File");
         buttonOpen.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 buttonOpenActionPerformed(evt);
@@ -502,32 +515,32 @@ public class AthosCameras extends Panel {
         textFile.setEditable(false);
         scrollFile.setViewportView(textFile);
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+        javax.swing.GroupLayout panelRecLayout = new javax.swing.GroupLayout(panelRec);
+        panelRec.setLayout(panelRecLayout);
+        panelRecLayout.setHorizontalGroup(
+            panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(panelRecLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(scrollFile, javax.swing.GroupLayout.PREFERRED_SIZE, 281, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
+                    .addGroup(panelRecLayout.createSequentialGroup()
                         .addComponent(buttonRec)
                         .addGap(2, 2, 2)
                         .addComponent(buttonStop)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelRecLayout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
                         .addComponent(buttonOpen)))
                 .addContainerGap())
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+        panelRecLayout.setVerticalGroup(
+            panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(panelRecLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                         .addComponent(buttonRec, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(buttonStop, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -537,7 +550,7 @@ public class AthosCameras extends Panel {
                 .addContainerGap())
         );
 
-        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Data Fields"));
+        panelData.setBorder(javax.swing.BorderFactory.createTitledBorder("Data Fields"));
 
         table.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -598,15 +611,15 @@ public class AthosCameras extends Panel {
             }
         });
 
-        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
-        jPanel2.setLayout(jPanel2Layout);
-        jPanel2Layout.setHorizontalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+        javax.swing.GroupLayout panelDataLayout = new javax.swing.GroupLayout(panelData);
+        panelData.setLayout(panelDataLayout);
+        panelDataLayout.setHorizontalGroup(
+            panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelDataLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelDataLayout.createSequentialGroup()
                         .addComponent(buttonDataPause)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(buttonPlot)
@@ -615,16 +628,16 @@ public class AthosCameras extends Panel {
                 .addContainerGap())
         );
 
-        jPanel2Layout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {buttonPlot, buttonSelect});
+        panelDataLayout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {buttonPlot, buttonSelect});
 
-        jPanel2Layout.setVerticalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel2Layout.createSequentialGroup()
+        panelDataLayout.setVerticalGroup(
+            panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(panelDataLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 115, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 126, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(buttonSelect)
                         .addComponent(buttonPlot))
                     .addComponent(buttonDataPause))
@@ -635,7 +648,7 @@ public class AthosCameras extends Panel {
         viewer.setServerUrl("localhost:8889");
         viewer.setShowFit(true);
 
-        jPanel6.setBorder(javax.swing.BorderFactory.createTitledBorder("Server Data Recording"));
+        panelSrvRec.setBorder(javax.swing.BorderFactory.createTitledBorder("Server Data Recording"));
 
         buttonSrvRec.setIcon(getIcon("Rec"));
         buttonSrvRec.setToolTipText("Start Data Recording");
@@ -678,36 +691,49 @@ public class AthosCameras extends Panel {
         scrollFile1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
         scrollFile1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
 
-        textSrvFile.setText("/Users/gobbo_a/test.h5");
+        textSrvFile.setEditable(false);
+        textSrvFile.setToolTipText("");
         scrollFile1.setViewportView(textSrvFile);
 
-        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
-        jPanel6.setLayout(jPanel6Layout);
-        jPanel6Layout.setHorizontalGroup(
-            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel6Layout.createSequentialGroup()
+        buttonSrvOpen.setText("Open File");
+        buttonSrvOpen.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonSrvOpenActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout panelSrvRecLayout = new javax.swing.GroupLayout(panelSrvRec);
+        panelSrvRec.setLayout(panelSrvRecLayout);
+        panelSrvRecLayout.setHorizontalGroup(
+            panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(panelSrvRecLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(scrollFile1, javax.swing.GroupLayout.PREFERRED_SIZE, 281, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel6Layout.createSequentialGroup()
+                    .addGroup(panelSrvRecLayout.createSequentialGroup()
                         .addComponent(buttonSrvRec)
                         .addGap(2, 2, 2)
                         .addComponent(buttonSrvStop)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                        .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelSrvRecLayout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(buttonSrvOpen)))
                 .addContainerGap())
         );
-        jPanel6Layout.setVerticalGroup(
-            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel6Layout.createSequentialGroup()
+        panelSrvRecLayout.setVerticalGroup(
+            panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(panelSrvRecLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                         .addComponent(buttonSrvRec, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(buttonSrvStop, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(scrollFile1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(buttonSrvOpen)
                 .addContainerGap())
         );
 
@@ -720,22 +746,22 @@ public class AthosCameras extends Panel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(panelRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(panelData, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(panelSrvRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(panelData, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(panelSrvRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(panelRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
-            .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 483, Short.MAX_VALUE)
+            .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 529, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -759,7 +785,7 @@ public class AthosCameras extends Panel {
 
     private void buttonOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonOpenActionPerformed
         try{
-            openFile();
+            openFile(false);
         } catch (Exception ex){
             this.showException(ex);
         }
@@ -827,23 +853,32 @@ public class AthosCameras extends Panel {
         }
     }//GEN-LAST:event_buttonDataPauseActionPerformed
 
+    private void buttonSrvOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSrvOpenActionPerformed
+        try{
+            openFile(true);
+        } catch (Exception ex){
+            this.showException(ex);
+        }
+    }//GEN-LAST:event_buttonSrvOpenActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JToggleButton buttonDataPause;
     private javax.swing.JButton buttonOpen;
     private javax.swing.JButton buttonPlot;
     private javax.swing.JToggleButton buttonRec;
     private javax.swing.JButton buttonSelect;
+    private javax.swing.JButton buttonSrvOpen;
     private javax.swing.JToggleButton buttonSrvRec;
     private javax.swing.JButton buttonSrvStop;
     private javax.swing.JButton buttonStop;
-    private javax.swing.JPanel jPanel1;
-    private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
-    private javax.swing.JPanel jPanel6;
     private javax.swing.JPanel jPanel7;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel labelRecording;
     private javax.swing.JLabel labelSrvRecording;
+    private javax.swing.JPanel panelData;
+    private javax.swing.JPanel panelRec;
+    private javax.swing.JPanel panelSrvRec;
     private javax.swing.JScrollPane scrollFile;
     private javax.swing.JScrollPane scrollFile1;
     private javax.swing.JTable table;
