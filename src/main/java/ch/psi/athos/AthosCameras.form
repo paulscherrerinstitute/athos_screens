@@ -88,13 +88,13 @@
                       <EmptySpace max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Group type="102" alignment="0" attributes="0">
-                              <Component id="buttonSrvRec" linkSize="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="buttonSrvRec" linkSize="5" min="-2" max="-2" attributes="0"/>
                               <EmptySpace min="0" pref="0" max="-2" attributes="0"/>
-                              <Component id="buttonSrvStop" linkSize="3" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace pref="13" max="32767" attributes="0"/>
+                              <Component id="buttonSrvStop" linkSize="5" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace pref="15" max="32767" attributes="0"/>
                               <Component id="labelSrvRecording" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace pref="13" max="32767" attributes="0"/>
-                              <Component id="buttonSrvOpen" linkSize="3" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace pref="15" max="32767" attributes="0"/>
+                              <Component id="buttonSrvOpen" min="-2" max="-2" attributes="0"/>
                           </Group>
                           <Component id="scrollListRemFile" alignment="0" pref="275" max="32767" attributes="0"/>
                       </Group>
@@ -107,10 +107,10 @@
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="2" attributes="0">
-                          <Component id="buttonSrvRec" alignment="2" max="32767" attributes="0"/>
-                          <Component id="buttonSrvStop" alignment="2" max="32767" attributes="0"/>
+                          <Component id="buttonSrvRec" linkSize="7" alignment="2" min="-2" max="-2" attributes="0"/>
+                          <Component id="buttonSrvStop" linkSize="7" alignment="2" min="-2" max="-2" attributes="0"/>
                           <Component id="labelSrvRecording" alignment="2" max="32767" attributes="0"/>
-                          <Component id="buttonSrvOpen" alignment="2" min="-2" max="-2" attributes="0"/>
+                          <Component id="buttonSrvOpen" linkSize="7" alignment="2" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="scrollListRemFile" min="-2" pref="60" max="-2" attributes="0"/>
@@ -226,15 +226,13 @@
               <Group type="103" groupAlignment="0" attributes="0">
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace max="-2" attributes="0"/>
-                      <Component id="jScrollPane1" pref="240" max="32767" attributes="0"/>
-                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                      <Group type="103" groupAlignment="1" attributes="0">
-                          <Group type="103" groupAlignment="3" attributes="0">
-                              <Component id="buttonSelect" alignment="3" min="-2" max="-2" attributes="0"/>
-                              <Component id="buttonPlot" alignment="3" min="-2" max="-2" attributes="0"/>
-                          </Group>
-                          <Component id="buttonDataPause" min="-2" max="-2" attributes="0"/>
+                      <Group type="103" groupAlignment="2" attributes="0">
+                          <Component id="buttonDataPause" linkSize="9" alignment="2" min="-2" max="-2" attributes="0"/>
+                          <Component id="buttonPlot" linkSize="9" alignment="2" min="-2" max="-2" attributes="0"/>
+                          <Component id="buttonSelect" linkSize="9" alignment="2" min="-2" max="-2" attributes="0"/>
                       </Group>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="jScrollPane1" pref="0" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                   </Group>
               </Group>
@@ -315,13 +313,13 @@
                               <EmptySpace max="-2" attributes="0"/>
                           </Group>
                           <Group type="102" attributes="0">
-                              <Component id="buttonRec" linkSize="4" min="-2" max="-2" attributes="0"/>
+                              <Component id="buttonRec" linkSize="6" min="-2" max="-2" attributes="0"/>
                               <EmptySpace min="0" pref="0" max="-2" attributes="0"/>
-                              <Component id="buttonStop" linkSize="4" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace pref="16" max="32767" attributes="0"/>
+                              <Component id="buttonStop" linkSize="6" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace pref="18" max="32767" attributes="0"/>
                               <Component id="labelRecording" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace pref="16" max="32767" attributes="0"/>
-                              <Component id="buttonOpen" linkSize="4" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace pref="18" max="32767" attributes="0"/>
+                              <Component id="buttonOpen" min="-2" max="-2" attributes="0"/>
                           </Group>
                       </Group>
                   </Group>
@@ -332,10 +330,10 @@
                   <Group type="102" alignment="0" attributes="0">
                       <EmptySpace max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="2" attributes="0">
-                          <Component id="buttonRec" alignment="2" max="32767" attributes="0"/>
-                          <Component id="buttonStop" alignment="2" max="32767" attributes="0"/>
+                          <Component id="buttonRec" linkSize="8" alignment="2" min="-2" max="-2" attributes="0"/>
+                          <Component id="buttonStop" linkSize="8" alignment="2" min="-2" max="-2" attributes="0"/>
+                          <Component id="buttonOpen" linkSize="8" alignment="2" min="-2" max="-2" attributes="0"/>
                           <Component id="labelRecording" alignment="2" max="32767" attributes="0"/>
-                          <Component id="buttonOpen" alignment="2" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="scrollListFile" min="-2" pref="60" max="-2" attributes="0"/>
