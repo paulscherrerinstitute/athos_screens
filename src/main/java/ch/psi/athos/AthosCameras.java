@@ -23,12 +23,12 @@ import ch.psi.utils.Str;
 import ch.psi.utils.Threading;
 import ch.psi.utils.swing.MainFrame;
 import ch.psi.utils.swing.SwingUtils;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +46,7 @@ public class AthosCameras extends Panel {
     
     PipelineServer imagePipeline;
     PipelineServer dataPipeline;
+    PipelineServer savePipeline;
     //String serverUrl = "localhost:
     Overlay errorOverlay;
     String imageInstanceName;
@@ -64,17 +65,20 @@ public class AthosCameras extends Panel {
     final DefaultTableModel model;
     
     Map<String, JDialog> deviceDialogs = new HashMap<>();
+    Map<String, Object> dataPipelineConfig;
     
     public AthosCameras() {
         initComponents();
         model = (DefaultTableModel) table.getModel();
         labelRecording.setVisible(false);
+        labelSrvRecording.setVisible(false);
         buttonOpen.setEnabled(false);
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
+        this.setPersistedComponents(new Component[]{textSrvFile});
     }
     
     ImageIcon getIcon(String name){
-        return new ImageIcon(ch.psi.pshell.ui.App.class.getResource("/ch/psi/pshell/ui/" + (MainFrame.isDark() ? "dark/": "") + name + ".png"));    
+        return MainFrame.searchIcon(name);
     }
 
     //Overridable callbacks
@@ -92,7 +96,13 @@ public class AthosCameras extends Panel {
 
     @Override
     public void onStateChange(State state, State former) {
-
+        if (state==state.Closing){
+            try {
+                stopSrvRecording();
+            } catch (Exception ex) {
+                Logger.getLogger(AthosCameras.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     @Override
@@ -172,15 +182,16 @@ public class AthosCameras extends Panel {
             dataInstanceName = getDataPipelineInstance();
             if (!dataPipeline.getPipelines().contains(pipelineName)) {
                 System.out.println("Creating pipeline: " + pipelineName);
-                config = new HashMap<>();
-                config.put("camera_name", cameraName);
-                config.put("include", new String[]{"x_center_of_mass", "y_center_of_mass",
+                dataPipelineConfig = new HashMap<>();
+                dataPipelineConfig.put("camera_name", cameraName);
+                dataPipelineConfig.put("include", new String[]{"x_center_of_mass", "y_center_of_mass",
                                                    "x_fit_mean", "y_fit_mean"});
-                config.put("image_region_of_interest", viewer.getServer().getRoi());
+                dataPipelineConfig.put("image_region_of_interest", viewer.getServer().getRoi());                
                 //server.createFromConfig(config, pipelineName);
-                dataPipeline.savePipelineConfig(pipelineName, config);
-            }
-            dataPipeline.start(pipelineName, dataInstanceName);                        
+                dataPipeline.savePipelineConfig(pipelineName, dataPipelineConfig);
+            } 
+            dataPipelineConfig = dataPipeline.getConfig(pipelineName);
+            dataPipeline.start(pipelineName, dataInstanceName);                  
             
             dataPipeline.getStream().addListener(new DeviceAdapter() {
                 @Override
@@ -194,17 +205,18 @@ public class AthosCameras extends Panel {
                     if (cfg.containsKey("image_region_of_interest")){                        
                         int[] roi = (int[]) cfg.get("image_region_of_interest");
                         if (roi==null){
-                            dataPipeline.resetRoi();
+                            dataPipeline.resetRoi();                           
                         } else {
                             dataPipeline.setRoi(roi);
                         }
+                        dataPipelineConfig.put("image_region_of_interest", roi);
                     }
                 } catch (Exception ex){
                     showException(ex);
                 }
             });
                         
-            
+            updateDataPause();
         } catch (Exception ex) {
             showException(ex);
         } finally {
@@ -253,16 +265,20 @@ public class AthosCameras extends Panel {
         return ret;
     }
     
-    MonitorScan scan;
+    MonitorScan recordingScan;
     
-    void startRecording() throws Exception{
+    void startRecording() throws Exception{        
         System.out.println("startRecording");
+        stopRecording();
         getContext().startExecution(CommandSource.plugin, null, cameraName,null, false);
         getContext().setExecutionPar("name", cameraName);
         //getContext().setExecutionPar("layout", "default");
         getContext().setExecutionPar("open", true);
-        scan=  new MonitorScan(dataPipeline.getStream(), getReadables(), -1, -1);
-        Threading.getFuture(() ->scan.start());          
+        recordingScan=  new MonitorScan(dataPipeline.getStream(), getReadables(), -1, -1);
+        Threading.getFuture(() ->recordingScan.start()).handle((ret,t)->{
+            recordingScan = null;
+            return ret;
+        });          
         textFile.setText(getContext().getExecutionPars().getPath());
         SwingUtilities.invokeLater(()->{
             scrollFile.getHorizontalScrollBar().setValue( scrollFile.getHorizontalScrollBar().getMaximum() );
@@ -271,10 +287,42 @@ public class AthosCameras extends Panel {
     }
     
     void stopRecording() throws Exception{
-        System.out.println("stopRecording");        
-        scan.abort();        
-        getContext().endExecution();
+        if (recordingScan != null){
+            System.out.println("stopRecording");        
+            recordingScan.abort();        
+            getContext().endExecution();
+            recordingScan = null;
+        }
     }
+    
+    
+    void startSrvRecording() throws Exception{        
+        System.out.println("startSrvRecording");
+        stopSrvRecording();
+        HashMap<String, Object> config = (HashMap<String, Object>) ((HashMap)dataPipelineConfig).clone();
+        config.put("mode", "FILE");
+        config.put("file", textSrvFile.getText());
+        config.put("layout", "FLAT");
+        config.put("localtime" , false);        
+        config.put("change" , false);      
+        String instanceName = getDataPipeline()+"_save";
+        savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl()); 
+        savePipeline.createFromConfig(config, instanceName);
+        savePipeline.start(instanceName, true);   
+    }
+    
+    void stopSrvRecording() throws Exception{
+        if (savePipeline!=null){
+            System.out.println("stopSrvRecording");        
+            savePipeline.stopInstance(getDataPipeline()+"_save");
+            savePipeline.stop();
+            savePipeline = null;
+        }
+    }
+    
+    void updateDataPause() throws Exception{
+        dataPipeline.setInstanceConfigValue("pause", buttonDataPause.isSelected());
+    }    
     
 
     void openFile() throws Exception{
@@ -344,8 +392,20 @@ public class AthosCameras extends Panel {
     }
     
     void updateButtons(){
+        boolean serveRec = savePipeline!=null;
+        boolean localRec = recordingScan!=null;
         buttonPlot.setEnabled((table.getRowCount()>0) && (table.getSelectedRowCount()==1));
         buttonSelect.setEnabled(cameraName!=null);
+        
+        buttonRec.setSelected(localRec);
+        buttonStop.setEnabled(localRec);
+        labelRecording.setVisible(localRec);
+                    
+        buttonSrvRec.setSelected(serveRec);
+        buttonSrvStop.setEnabled(serveRec);
+        labelSrvRecording.setVisible(serveRec);        
+        
+        
     }
     
     
@@ -379,9 +439,17 @@ public class AthosCameras extends Panel {
         table = new javax.swing.JTable();
         buttonSelect = new javax.swing.JButton();
         buttonPlot = new javax.swing.JButton();
+        buttonDataPause = new javax.swing.JToggleButton();
         viewer = new ch.psi.pshell.bs.StreamCameraViewer();
+        jPanel6 = new javax.swing.JPanel();
+        buttonSrvRec = new javax.swing.JToggleButton();
+        buttonSrvStop = new javax.swing.JButton();
+        jPanel7 = new javax.swing.JPanel();
+        labelSrvRecording = new javax.swing.JLabel();
+        scrollFile1 = new javax.swing.JScrollPane();
+        textSrvFile = new javax.swing.JTextField();
 
-        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Data Recording"));
+        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Local Data Recording"));
 
         buttonRec.setIcon(getIcon("Rec"));
         buttonRec.setToolTipText("Start Data Recording");
@@ -506,7 +574,7 @@ public class AthosCameras extends Panel {
         });
         jScrollPane1.setViewportView(table);
 
-        buttonSelect.setText("Select Fields");
+        buttonSelect.setText("Select");
         buttonSelect.setEnabled(false);
         buttonSelect.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -522,18 +590,27 @@ public class AthosCameras extends Panel {
             }
         });
 
+        buttonDataPause.setIcon(getIcon("Pause"));
+        buttonDataPause.setToolTipText("Start Data Recording");
+        buttonDataPause.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonDataPauseActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE))
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(buttonPlot)
+                        .addComponent(buttonDataPause)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(buttonPlot)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(buttonSelect)))
                 .addContainerGap())
         );
@@ -544,17 +621,95 @@ public class AthosCameras extends Panel {
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 115, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(buttonSelect)
-                    .addComponent(buttonPlot))
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(buttonSelect)
+                        .addComponent(buttonPlot))
+                    .addComponent(buttonDataPause))
                 .addContainerGap())
         );
 
         viewer.setLocalFit(java.lang.Boolean.TRUE);
         viewer.setServerUrl("localhost:8889");
         viewer.setShowFit(true);
+
+        jPanel6.setBorder(javax.swing.BorderFactory.createTitledBorder("Server Data Recording"));
+
+        buttonSrvRec.setIcon(getIcon("Rec"));
+        buttonSrvRec.setToolTipText("Start Data Recording");
+        buttonSrvRec.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonSrvRecActionPerformed(evt);
+            }
+        });
+
+        buttonSrvStop.setIcon(getIcon("Stop"));
+        buttonSrvStop.setEnabled(false);
+        buttonSrvStop.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonSrvStopActionPerformed(evt);
+            }
+        });
+
+        labelSrvRecording.setFont(new java.awt.Font("Lucida Grande", 0, 12)); // NOI18N
+        labelSrvRecording.setForeground(new java.awt.Color(255, 0, 0));
+        labelSrvRecording.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        labelSrvRecording.setText("RECORDING");
+
+        javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
+        jPanel7.setLayout(jPanel7Layout);
+        jPanel7Layout.setHorizontalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addGap(0, 0, 0)
+                .addComponent(labelSrvRecording, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGap(0, 0, 0))
+        );
+        jPanel7Layout.setVerticalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(labelSrvRecording, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        scrollFile1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+        scrollFile1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+
+        textSrvFile.setText("/Users/gobbo_a/test.h5");
+        scrollFile1.setViewportView(textSrvFile);
+
+        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
+        jPanel6.setLayout(jPanel6Layout);
+        jPanel6Layout.setHorizontalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel6Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(scrollFile1, javax.swing.GroupLayout.PREFERRED_SIZE, 281, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel6Layout.createSequentialGroup()
+                        .addComponent(buttonSrvRec)
+                        .addGap(2, 2, 2)
+                        .addComponent(buttonSrvStop)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                .addContainerGap())
+        );
+        jPanel6Layout.setVerticalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel6Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                        .addComponent(buttonSrvRec, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(buttonSrvStop, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(scrollFile1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
+        );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -564,8 +719,10 @@ public class AthosCameras extends Panel {
                 .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 467, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -574,16 +731,16 @@ public class AthosCameras extends Panel {
                 .addContainerGap()
                 .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
-            .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 413, Short.MAX_VALUE)
+            .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 483, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
     private void buttonRecActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonRecActionPerformed
         try{
-            buttonStop.setEnabled(buttonRec.isSelected());
-            labelRecording.setVisible(buttonRec.isSelected());
             if (buttonRec.isSelected()){
                 startRecording();
             } else {
@@ -591,7 +748,8 @@ public class AthosCameras extends Panel {
             }
         } catch (Exception ex){
             this.showException(ex);
-        }
+        }  
+        updateButtons();
     }//GEN-LAST:event_buttonRecActionPerformed
 
     private void buttonStopActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonStopActionPerformed
@@ -643,20 +801,54 @@ public class AthosCameras extends Panel {
         updateButtons();
     }//GEN-LAST:event_tableKeyReleased
 
+    private void buttonSrvRecActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSrvRecActionPerformed
+        try{
+            if (buttonSrvRec.isSelected()){
+                startSrvRecording();
+            } else {
+                stopSrvRecording();
+            }
+        } catch (Exception ex){
+            this.showException(ex);
+        }
+        updateButtons();
+    }//GEN-LAST:event_buttonSrvRecActionPerformed
+
+    private void buttonSrvStopActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSrvStopActionPerformed
+        buttonSrvRec.setSelected(false);
+        buttonSrvRecActionPerformed(null);
+    }//GEN-LAST:event_buttonSrvStopActionPerformed
+
+    private void buttonDataPauseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonDataPauseActionPerformed
+        try{
+            updateDataPause();
+        } catch (Exception ex){
+            this.showException(ex);
+        }
+    }//GEN-LAST:event_buttonDataPauseActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JToggleButton buttonDataPause;
     private javax.swing.JButton buttonOpen;
     private javax.swing.JButton buttonPlot;
     private javax.swing.JToggleButton buttonRec;
     private javax.swing.JButton buttonSelect;
+    private javax.swing.JToggleButton buttonSrvRec;
+    private javax.swing.JButton buttonSrvStop;
     private javax.swing.JButton buttonStop;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel jPanel6;
+    private javax.swing.JPanel jPanel7;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel labelRecording;
+    private javax.swing.JLabel labelSrvRecording;
     private javax.swing.JScrollPane scrollFile;
+    private javax.swing.JScrollPane scrollFile1;
     private javax.swing.JTable table;
     private javax.swing.JTextField textFile;
+    private javax.swing.JTextField textSrvFile;
     private ch.psi.pshell.bs.StreamCameraViewer viewer;
     // End of variables declaration//GEN-END:variables
 }
