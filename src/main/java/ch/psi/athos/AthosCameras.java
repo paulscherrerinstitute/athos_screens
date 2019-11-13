@@ -29,16 +29,16 @@ import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.AbstractListModel;
 import javax.swing.ImageIcon;
 import javax.swing.JDialog;
-import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -70,6 +70,9 @@ public class AthosCameras extends Panel {
     Map<String, Object> dataPipelineConfig;
     
     String remoteData;
+    
+    final List<String> fileHistory = new ArrayList<>();
+    final List<String> fileRemHistory = new ArrayList<>();
     
     public AthosCameras() {
         initComponents();
@@ -286,11 +289,20 @@ public class AthosCameras extends Panel {
         Threading.getFuture(() ->recordingScan.start()).handle((ret,t)->{
             recordingScan = null;
             return ret;
-        });          
-        textFile.setText(getContext().getExecutionPars().getPath());
-        SwingUtilities.invokeLater(()->{
-            scrollFile.getHorizontalScrollBar().setValue( scrollFile.getHorizontalScrollBar().getMaximum() );
+        });     
+        fileHistory.add(getContext().getExecutionPars().getPath());
+        listFile.setModel( new javax.swing.AbstractListModel<String>() {
+            @Override
+            public int getSize() {
+                return fileHistory.size();
+            }
+
+            @Override
+            public String getElementAt(int i) {
+                return fileHistory.get(getSize()-i-1);
+            }
         });
+        listFile.setSelectedIndex(0);
         buttonOpen.setEnabled(true);
     }
     
@@ -311,7 +323,6 @@ public class AthosCameras extends Panel {
         config.put("mode", "FILE");
         String fileName = Context.getInstance().getSetup().expandPath("{date}_{time}_"+cameraName, System.currentTimeMillis());       
         fileName = Paths.get(remoteData, fileName + ".h5").toString();
-        textSrvFile.setText(fileName);
         config.put("file", fileName);
         config.put("layout", "FLAT");
         config.put("localtime" , false);        
@@ -319,8 +330,22 @@ public class AthosCameras extends Panel {
         String instanceName = getDataPipeline()+"_save";
         savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl()); 
         savePipeline.createFromConfig(config, instanceName);
-        savePipeline.start(instanceName, true);   
-        buttonSrvOpen.setEnabled(true);
+        savePipeline.start(instanceName, true);       
+        
+        fileRemHistory.add(fileName);
+        listRemFile.setModel( new javax.swing.AbstractListModel<String>() {
+            @Override
+            public int getSize() {
+                return fileRemHistory.size();
+            }
+
+            @Override
+            public String getElementAt(int i) {
+                return fileRemHistory.get(getSize()-i-1);
+            }
+        });
+        listRemFile.setSelectedIndex(0);        
+        buttonSrvOpen.setEnabled(true);           
     }
     
     void stopSrvRecording() throws Exception{
@@ -338,7 +363,7 @@ public class AthosCameras extends Panel {
     
 
     void openFile(boolean server) throws Exception{
-        String filename = server ? textSrvFile.getText() : textFile.getText();
+        String filename = server ? listRemFile.getSelectedValue() : listFile.getSelectedValue();
         DataPanel panel = DataPanel.create(new File(filename));
         SwingUtils.showDialog(getTopLevel(), filename, new Dimension(600,400), panel);        
     }
@@ -444,8 +469,8 @@ public class AthosCameras extends Panel {
         jPanel3 = new javax.swing.JPanel();
         labelRecording = new javax.swing.JLabel();
         buttonOpen = new javax.swing.JButton();
-        scrollFile = new javax.swing.JScrollPane();
-        textFile = new javax.swing.JTextField();
+        scrollListFile = new javax.swing.JScrollPane();
+        listFile = new javax.swing.JList<>();
         panelData = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         table = new javax.swing.JTable();
@@ -458,9 +483,9 @@ public class AthosCameras extends Panel {
         buttonSrvStop = new javax.swing.JButton();
         jPanel7 = new javax.swing.JPanel();
         labelSrvRecording = new javax.swing.JLabel();
-        scrollFile1 = new javax.swing.JScrollPane();
-        textSrvFile = new javax.swing.JTextField();
         buttonSrvOpen = new javax.swing.JButton();
+        scrollListRemFile = new javax.swing.JScrollPane();
+        listRemFile = new javax.swing.JList<>();
 
         panelRec.setBorder(javax.swing.BorderFactory.createTitledBorder("Local Data Recording"));
 
@@ -491,7 +516,7 @@ public class AthosCameras extends Panel {
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addGap(0, 0, 0)
-                .addComponent(labelRecording, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(labelRecording, javax.swing.GroupLayout.DEFAULT_SIZE, 129, Short.MAX_VALUE)
                 .addGap(0, 0, 0))
         );
         jPanel3Layout.setVerticalGroup(
@@ -502,36 +527,43 @@ public class AthosCameras extends Panel {
                 .addContainerGap())
         );
 
-        buttonOpen.setText("Open File");
+        buttonOpen.setText("Open");
         buttonOpen.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 buttonOpenActionPerformed(evt);
             }
         });
 
-        scrollFile.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-        scrollFile.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        scrollListFile.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+        scrollListFile.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollListFile.setBounds(new java.awt.Rectangle(0, 0, 0, 0));
+        scrollListFile.setViewportView(null);
 
-        textFile.setEditable(false);
-        scrollFile.setViewportView(textFile);
+        listFile.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        listFile.setBounds(new java.awt.Rectangle(0, 0, 0, 0));
+        scrollListFile.setViewportView(listFile);
 
         javax.swing.GroupLayout panelRecLayout = new javax.swing.GroupLayout(panelRec);
         panelRec.setLayout(panelRecLayout);
         panelRecLayout.setHorizontalGroup(
             panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(panelRecLayout.createSequentialGroup()
-                .addContainerGap()
                 .addGroup(panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(scrollFile, javax.swing.GroupLayout.PREFERRED_SIZE, 281, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(panelRecLayout.createSequentialGroup()
-                        .addComponent(buttonRec)
-                        .addGap(2, 2, 2)
-                        .addComponent(buttonStop)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelRecLayout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(buttonOpen)))
+                        .addContainerGap()
+                        .addGroup(panelRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(panelRecLayout.createSequentialGroup()
+                                .addComponent(buttonRec)
+                                .addGap(2, 2, 2)
+                                .addComponent(buttonStop)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addGroup(panelRecLayout.createSequentialGroup()
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(buttonOpen))))
+                    .addGroup(panelRecLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(scrollListFile, javax.swing.GroupLayout.DEFAULT_SIZE, 287, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         panelRecLayout.setVerticalGroup(
@@ -544,10 +576,9 @@ public class AthosCameras extends Panel {
                         .addComponent(buttonRec, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(buttonStop, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(scrollFile, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(buttonOpen)
-                .addContainerGap())
+                .addComponent(scrollListFile, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(2, 2, 2)
+                .addComponent(buttonOpen))
         );
 
         panelData.setBorder(javax.swing.BorderFactory.createTitledBorder("Data Fields"));
@@ -618,7 +649,7 @@ public class AthosCameras extends Panel {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelDataLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 287, Short.MAX_VALUE)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelDataLayout.createSequentialGroup()
                         .addComponent(buttonDataPause)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -634,7 +665,7 @@ public class AthosCameras extends Panel {
             panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(panelDataLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 126, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 176, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -677,7 +708,7 @@ public class AthosCameras extends Panel {
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel7Layout.createSequentialGroup()
                 .addGap(0, 0, 0)
-                .addComponent(labelSrvRecording, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(labelSrvRecording, javax.swing.GroupLayout.DEFAULT_SIZE, 129, Short.MAX_VALUE)
                 .addGap(0, 0, 0))
         );
         jPanel7Layout.setVerticalGroup(
@@ -688,19 +719,19 @@ public class AthosCameras extends Panel {
                 .addContainerGap())
         );
 
-        scrollFile1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-        scrollFile1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-
-        textSrvFile.setEditable(false);
-        textSrvFile.setToolTipText("");
-        scrollFile1.setViewportView(textSrvFile);
-
-        buttonSrvOpen.setText("Open File");
+        buttonSrvOpen.setText("Open");
         buttonSrvOpen.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 buttonSrvOpenActionPerformed(evt);
             }
         });
+
+        scrollListRemFile.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+        scrollListRemFile.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        scrollListRemFile.setViewportView(null);
+
+        listRemFile.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        scrollListRemFile.setViewportView(listRemFile);
 
         javax.swing.GroupLayout panelSrvRecLayout = new javax.swing.GroupLayout(panelSrvRec);
         panelSrvRec.setLayout(panelSrvRecLayout);
@@ -709,7 +740,6 @@ public class AthosCameras extends Panel {
             .addGroup(panelSrvRecLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(scrollFile1, javax.swing.GroupLayout.PREFERRED_SIZE, 281, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(panelSrvRecLayout.createSequentialGroup()
                         .addComponent(buttonSrvRec)
                         .addGap(2, 2, 2)
@@ -718,23 +748,23 @@ public class AthosCameras extends Panel {
                         .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelSrvRecLayout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(buttonSrvOpen)))
+                        .addComponent(buttonSrvOpen))
+                    .addComponent(scrollListRemFile, javax.swing.GroupLayout.DEFAULT_SIZE, 287, Short.MAX_VALUE))
                 .addContainerGap())
         );
         panelSrvRecLayout.setVerticalGroup(
             panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(panelSrvRecLayout.createSequentialGroup()
-                .addContainerGap()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(panelSrvRecLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                         .addComponent(buttonSrvRec, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(buttonSrvStop, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(scrollFile1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(buttonSrvOpen)
-                .addContainerGap())
+                .addComponent(scrollListRemFile, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(4, 4, 4)
+                .addComponent(buttonSrvOpen))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
@@ -742,8 +772,8 @@ public class AthosCameras extends Panel {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 467, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 469, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(panelRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -751,6 +781,9 @@ public class AthosCameras extends Panel {
                     .addComponent(panelSrvRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
+
+        layout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {panelData, panelRec, panelSrvRec});
+
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
@@ -761,7 +794,7 @@ public class AthosCameras extends Panel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(panelRec, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
-            .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 529, Short.MAX_VALUE)
+            .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 591, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -876,14 +909,14 @@ public class AthosCameras extends Panel {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel labelRecording;
     private javax.swing.JLabel labelSrvRecording;
+    private javax.swing.JList<String> listFile;
+    private javax.swing.JList<String> listRemFile;
     private javax.swing.JPanel panelData;
     private javax.swing.JPanel panelRec;
     private javax.swing.JPanel panelSrvRec;
-    private javax.swing.JScrollPane scrollFile;
-    private javax.swing.JScrollPane scrollFile1;
+    private javax.swing.JScrollPane scrollListFile;
+    private javax.swing.JScrollPane scrollListRemFile;
     private javax.swing.JTable table;
-    private javax.swing.JTextField textFile;
-    private javax.swing.JTextField textSrvFile;
     private ch.psi.pshell.bs.StreamCameraViewer viewer;
     // End of variables declaration//GEN-END:variables
 }
