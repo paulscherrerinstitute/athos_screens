@@ -77,6 +77,7 @@ public class AthosCameras extends Panel {
     final List<String> fileRemHistory = new ArrayList<>();
     
     ChannelString channelCameraName;
+    HardwarePanel hardwarePanel;
     
     public AthosCameras() {
         initComponents();
@@ -91,6 +92,8 @@ public class AthosCameras extends Panel {
         buttonSrvOpen.setVisible((new File(remoteData)).isDirectory());
         panelSrvRec.setVisible(remoteData!=null);        
         logger = Logger.getLogger(AthosCameras.class.getName());
+        hardwarePanel = new HardwarePanel();
+        viewer.getCustomPanel().add(hardwarePanel);
     }
         
     
@@ -124,8 +127,9 @@ public class AthosCameras extends Panel {
                 channelCameraName.initialize();
                 channelCameraName.update();
                 addDevice(channelCameraName);
-
             }
+            updateButtons();
+            startTimer(1000);            
         } catch (Exception ex) {
             logger.log(Level.SEVERE, null, ex);
             showException(ex);
@@ -140,6 +144,17 @@ public class AthosCameras extends Panel {
             } catch (Exception ex) {
                 logger.log(Level.SEVERE, null, ex);
             }
+        }
+    }
+    
+    @Override
+    protected void onTimer() {
+        try{
+            if (hardwarePanel!=null){
+                hardwarePanel.onTimer();
+            }
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, null, ex);
         }
     }
 
@@ -194,7 +209,11 @@ public class AthosCameras extends Panel {
         this.cameraName = cameraName;
         model.setRowCount(0);
         updateButtons();
-
+        if (changed){
+            if (hardwarePanel!=null){
+                hardwarePanel.setCamera(null);
+            }
+        }
         if (cameraName == null) {
             return;
         }        
@@ -255,6 +274,13 @@ public class AthosCameras extends Panel {
             });
                         
             updateDataPause();
+            
+            if (changed){
+                if (hardwarePanel!=null){
+                    hardwarePanel.setCamera(cameraName);
+                }
+            }
+            
         } catch (Exception ex) {
             showException(ex);
         } finally {
