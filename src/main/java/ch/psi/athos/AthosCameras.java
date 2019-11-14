@@ -11,6 +11,7 @@ import ch.psi.pshell.device.Readable.ReadableArray;
 import ch.psi.pshell.device.Readable.ReadableNumber;
 import ch.psi.pshell.device.ReadableRegister.ReadableRegisterArray;
 import ch.psi.pshell.device.ReadableRegister.ReadableRegisterNumber;
+import ch.psi.pshell.epics.ChannelString;
 import ch.psi.pshell.imaging.Overlay;
 import ch.psi.pshell.scan.MonitorScan;
 import ch.psi.pshell.swing.DataPanel;
@@ -36,15 +37,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.AbstractListModel;
 import javax.swing.ImageIcon;
 import javax.swing.JDialog;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
 /**
  *
  */
 public class AthosCameras extends Panel {
+    final Logger logger;
     
     PipelineServer imagePipeline;
     PipelineServer dataPipeline;
@@ -74,6 +76,8 @@ public class AthosCameras extends Panel {
     final List<String> fileHistory = new ArrayList<>();
     final List<String> fileRemHistory = new ArrayList<>();
     
+    ChannelString channelCameraName;
+    
     public AthosCameras() {
         initComponents();
         model = (DefaultTableModel) table.getModel();
@@ -84,7 +88,8 @@ public class AthosCameras extends Panel {
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
         remoteData = App.getArgumentValue("remote_data");
-        panelSrvRec.setVisible(remoteData!=null);
+        panelSrvRec.setVisible(remoteData!=null);        
+        logger = Logger.getLogger(AthosCameras.class.getName());
     }
         
     
@@ -95,14 +100,35 @@ public class AthosCameras extends Panel {
     //Overridable callbacks
     @Override
     public void onInitialize(int runCount) {
-        if (App.hasArgument("cam")) {
-            try {
-                setCamera(App.getArgumentValue("cam"));
-            } catch (Exception ex) {
-                Logger.getLogger(AthosCameras.class.getName()).log(Level.SEVERE, null, ex);
-            } 
-        }
-        viewer.setPersistenceFile(Paths.get(getContext().getSetup().expandPath(persistFile)).toString());
+        try {
+            viewer.setPersistenceFile(Paths.get(getContext().getSetup().expandPath(persistFile)).toString());
+            if (App.hasArgument("cam")) {
+                    setCamera(App.getArgumentValue("cam"));
+            } else if (App.hasArgument("channel")){
+                channelCameraName = new  ChannelString ("Channel Selector", App.getArgumentValue("channel"));
+                channelCameraName.setMonitored(true);
+                channelCameraName.addListener(new DeviceAdapter(){
+                    public void onValueChanged(Device device, Object value, Object former){
+                        SwingUtilities.invokeLater(()->{
+                            try{
+                                setCamera(String.valueOf(value));
+                            } catch (Exception ex) {
+                                logger.log(Level.SEVERE, null, ex);
+                                showException(ex);
+                            } 
+                        });                        
+                    }
+                });
+
+                channelCameraName.initialize();
+                channelCameraName.update();
+                addDevice(channelCameraName);
+
+            }
+        } catch (Exception ex) {
+            logger.log(Level.SEVERE, null, ex);
+            showException(ex);
+        } 
     }
 
     @Override
@@ -111,7 +137,7 @@ public class AthosCameras extends Panel {
             try {
                 stopSrvRecording();
             } catch (Exception ex) {
-                Logger.getLogger(AthosCameras.class.getName()).log(Level.SEVERE, null, ex);
+                logger.log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -161,7 +187,7 @@ public class AthosCameras extends Panel {
 
     
     void setCamera(String cameraName) throws IOException, InterruptedException {
-        System.out.println("Initializing: " + cameraName);
+         logger.info("Initializing: " + cameraName);
         
         boolean changed = !String.valueOf(cameraName).equals(this.cameraName);
         this.cameraName = cameraName;
@@ -172,11 +198,11 @@ public class AthosCameras extends Panel {
             return;
         }        
 
-        System.out.println("Setting camera: " + cameraName );
+        logger.info("Setting camera: " + cameraName );
         try{
                        
             String pipelineName = getImagePipeline(); 
-            System.out.println("Creating pipeline: " + pipelineName);
+            logger.info("Creating pipeline: " + pipelineName);
             HashMap<String, Object> config = new HashMap<>();
             config.put("camera_name", cameraName);
             config.put("name", pipelineName);
@@ -187,12 +213,12 @@ public class AthosCameras extends Panel {
             dataPipeline = new PipelineServer("image", viewer.getServerUrl()); 
             dataPipeline.initialize();
             dataPipeline.assertInitialized();
-            System.out.println("Data pipeline initialization OK");
+            logger.info("Data pipeline initialization OK");
             
             pipelineName = getDataPipeline();
             dataInstanceName = getDataPipelineInstance();
             if (!dataPipeline.getPipelines().contains(pipelineName)) {
-                System.out.println("Creating pipeline: " + pipelineName);
+                logger.info("Creating pipeline: " + pipelineName);
                 dataPipelineConfig = new HashMap<>();
                 dataPipelineConfig.put("camera_name", cameraName);
                 dataPipelineConfig.put("include", new String[]{"x_center_of_mass", "y_center_of_mass",
@@ -278,8 +304,7 @@ public class AthosCameras extends Panel {
     
     MonitorScan recordingScan;
     
-    void startRecording() throws Exception{        
-        System.out.println("startRecording");
+    void startRecording() throws Exception{                
         stopRecording();
         getContext().startExecution(CommandSource.plugin, null, cameraName,null, false);
         getContext().setExecutionPar("name", cameraName);
@@ -290,7 +315,9 @@ public class AthosCameras extends Panel {
             recordingScan = null;
             return ret;
         });     
-        fileHistory.add(getContext().getExecutionPars().getPath());
+        String fileName = getContext().getExecutionPars().getPath();
+        logger.info("Start recording: " + fileName);
+        fileHistory.add(fileName);
         listFile.setModel( new javax.swing.AbstractListModel<String>() {
             @Override
             public int getSize() {
@@ -308,7 +335,7 @@ public class AthosCameras extends Panel {
     
     void stopRecording() throws Exception{
         if (recordingScan != null){
-            System.out.println("stopRecording");        
+            logger.info("Stop recording");        
             recordingScan.abort();        
             getContext().endExecution();
             recordingScan = null;
@@ -316,13 +343,14 @@ public class AthosCameras extends Panel {
     }
     
     
-    void startSrvRecording() throws Exception{        
-        System.out.println("startSrvRecording");
+    void startSrvRecording() throws Exception{               
         stopSrvRecording();
-        HashMap<String, Object> config = (HashMap<String, Object>) ((HashMap)dataPipelineConfig).clone();
-        config.put("mode", "FILE");
         String fileName = Context.getInstance().getSetup().expandPath("{date}_{time}_"+cameraName, System.currentTimeMillis());       
         fileName = Paths.get(remoteData, fileName + ".h5").toString();
+        logger.info("Start server recording: " + fileName);
+        
+        HashMap<String, Object> config = (HashMap<String, Object>) ((HashMap)dataPipelineConfig).clone();
+        config.put("mode", "FILE");
         config.put("file", fileName);
         config.put("layout", "FLAT");
         config.put("localtime" , false);        
@@ -350,7 +378,7 @@ public class AthosCameras extends Panel {
     
     void stopSrvRecording() throws Exception{
         if (savePipeline!=null){
-            System.out.println("stopSrvRecording");        
+            logger.info("Stop server recording");          
             savePipeline.stopInstance(getDataPipeline()+"_save");
             savePipeline.stop();
             savePipeline = null;
