@@ -88,6 +88,7 @@ public class AthosCameras extends Panel {
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
         remoteData = App.getArgumentValue("remote_data");
+        buttonSrvOpen.setVisible((new File(remoteData)).isDirectory());
         panelSrvRec.setVisible(remoteData!=null);        
         logger = Logger.getLogger(AthosCameras.class.getName());
     }
@@ -307,8 +308,7 @@ public class AthosCameras extends Panel {
     void startRecording() throws Exception{                
         stopRecording();
         getContext().startExecution(CommandSource.plugin, null, cameraName,null, false);
-        getContext().setExecutionPar("name", cameraName);
-        //getContext().setExecutionPar("layout", "default");
+        getContext().setExecutionPar("name", cameraName);     
         getContext().setExecutionPar("open", true);
         recordingScan=  new MonitorScan(dataPipeline.getStream(), getReadables(), -1, -1);
         Threading.getFuture(() ->recordingScan.start()).handle((ret,t)->{
@@ -330,7 +330,6 @@ public class AthosCameras extends Panel {
             }
         });
         listFile.setSelectedIndex(0);
-        buttonOpen.setEnabled(true);
     }
     
     void stopRecording() throws Exception{
@@ -355,6 +354,16 @@ public class AthosCameras extends Panel {
         config.put("layout", "FLAT");
         config.put("localtime" , false);        
         config.put("change" , false);      
+        if (App.hasArgument("rlay")) {
+            String[] tokens =  App.getArgumentValue("rlay").split("\\|");
+            config.put("layout", tokens[0]);
+            if (tokens.length>1){
+                config.put("localtime" , Boolean.valueOf(tokens[1]));  
+            }
+            if (tokens.length>2){
+                config.put("change" , Boolean.valueOf(tokens[2]));  
+            }
+        }                    
         String instanceName = getDataPipeline()+"_save";
         savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl()); 
         savePipeline.createFromConfig(config, instanceName);
@@ -373,7 +382,6 @@ public class AthosCameras extends Panel {
             }
         });
         listRemFile.setSelectedIndex(0);        
-        buttonSrvOpen.setEnabled(true);           
     }
     
     void stopSrvRecording() throws Exception{
@@ -467,6 +475,10 @@ public class AthosCameras extends Panel {
         buttonSelect.setEnabled(running);
         buttonPlot.setEnabled((table.getRowCount()>0) && (table.getSelectedRowCount()==1));
         
+        buttonOpen.setEnabled(fileHistory.size()>0);        
+        buttonSrvOpen.setEnabled((fileRemHistory.size()>0) && 
+                                 ((!serveRec) || ((listRemFile.getSelectedIndex()>0)))); 
+                
         buttonRec.setSelected(localRec);
         buttonStop.setEnabled(localRec);
         labelRecording.setVisible(localRec);
@@ -554,6 +566,11 @@ public class AthosCameras extends Panel {
         scrollListRemFile.setViewportView(null);
 
         listRemFile.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        listRemFile.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                listRemFileValueChanged(evt);
+            }
+        });
         scrollListRemFile.setViewportView(listRemFile);
 
         labelSrvRecording.setFont(new java.awt.Font("Lucida Grande", 0, 12)); // NOI18N
@@ -930,6 +947,10 @@ public class AthosCameras extends Panel {
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonResetActionPerformed
+
+    private void listRemFileValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_listRemFileValueChanged
+        updateButtons();
+    }//GEN-LAST:event_listRemFileValueChanged
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JToggleButton buttonDataPause;
