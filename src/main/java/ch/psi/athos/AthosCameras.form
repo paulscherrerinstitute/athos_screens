@@ -36,7 +36,7 @@
       <Properties>
         <Property name="localFit" type="java.lang.Boolean" value="true"/>
         <Property name="serverUrl" type="java.lang.String" value="localhost:8889"/>
-        <Property name="showFit" type="boolean" value="true"/>
+        <Property name="showFit" type="boolean" value="false"/>
       </Properties>
     </Component>
     <Container class="javax.swing.JPanel" name="jPanel1">

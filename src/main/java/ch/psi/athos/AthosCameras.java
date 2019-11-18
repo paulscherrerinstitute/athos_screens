@@ -86,6 +86,9 @@ public class AthosCameras extends Panel {
         labelSrvRecording.setVisible(false);
         buttonOpen.setEnabled(false);
         buttonSrvOpen.setEnabled(false);
+        if (App.hasArgument("pipeline_server")) {
+            viewer.setServerUrl(App.getArgumentValue("pipeline_server"));
+        }        
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
         remoteData = App.getArgumentValue("remote_data");
@@ -559,7 +562,7 @@ public class AthosCameras extends Panel {
 
         viewer.setLocalFit(java.lang.Boolean.TRUE);
         viewer.setServerUrl("localhost:8889");
-        viewer.setShowFit(true);
+        viewer.setShowFit(false);
 
         panelSrvRec.setBorder(javax.swing.BorderFactory.createTitledBorder("Server Data Recording"));
 
