@@ -89,7 +89,7 @@ public class AthosCameras extends Panel {
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
         remoteData = App.getArgumentValue("remote_data");
-        buttonSrvOpen.setVisible((new File(remoteData)).isDirectory());
+        buttonSrvOpen.setVisible((remoteData!=null) && (new File(remoteData)).isDirectory());
         panelSrvRec.setVisible(remoteData!=null);        
         logger = Logger.getLogger(AthosCameras.class.getName());
         hardwarePanel = new HardwarePanel();
