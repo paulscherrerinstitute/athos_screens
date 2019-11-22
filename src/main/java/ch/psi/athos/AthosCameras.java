@@ -88,6 +88,9 @@ public class AthosCameras extends Panel {
         buttonSrvOpen.setEnabled(false);
         if (App.hasArgument("pipeline_server")) {
             viewer.setServerUrl(App.getArgumentValue("pipeline_server"));
+        }    
+        if (App.hasArgument("frame_rate")){
+            imageFrameRate = Double.parseDouble(App.getArgumentValue("frame_rate"));
         }        
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
@@ -526,9 +529,6 @@ public class AthosCameras extends Panel {
                                       }, 
                           args);
         App.main(args);
-        if (App.hasArgument("frameRate")){
-            imageFrameRate = Double.parseDouble(App.getArgumentValue("frameRate"));
-        }
     }
     
     
