@@ -27,7 +27,7 @@ public class HistogramDevicePanel extends DevicePanel {
     public void setDevice(Device device) {
         plot.clear();
         super.setDevice(device);
-        series = new LinePlotSeries(device.getName() + " Histogram");
+        series = new LinePlotSeries(device.getName());
         plot.addSeries(series);
     }
     

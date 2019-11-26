@@ -563,6 +563,7 @@ public class AthosCameras extends Panel {
         buttonRec.setEnabled(running);
         buttonSelect.setEnabled(running);
         buttonPlot.setEnabled((table.getRowCount() > 0) && (table.getSelectedRowCount() == 1));
+        buttonHistogram.setEnabled(buttonPlot.isEnabled());
 
         buttonOpen.setEnabled(fileHistory.size() > 0);
         buttonSrvOpen.setEnabled((fileRemHistory.size() > 0)
@@ -605,6 +606,7 @@ public class AthosCameras extends Panel {
         buttonPlot = new javax.swing.JButton();
         buttonDataPause = new javax.swing.JToggleButton();
         buttonReset = new javax.swing.JButton();
+        buttonHistogram = new javax.swing.JButton();
         panelRec = new javax.swing.JPanel();
         buttonRec = new javax.swing.JToggleButton();
         buttonStop = new javax.swing.JButton();
@@ -765,11 +767,19 @@ public class AthosCameras extends Panel {
             }
         });
 
+        buttonHistogram.setText("Histo");
+        buttonHistogram.setEnabled(false);
+        buttonHistogram.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonHistogramActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout panelDataLayout = new javax.swing.GroupLayout(panelData);
         panelData.setLayout(panelDataLayout);
         panelDataLayout.setHorizontalGroup(
             panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelDataLayout.createSequentialGroup()
+            .addGroup(panelDataLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
@@ -778,13 +788,16 @@ public class AthosCameras extends Panel {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(buttonDataPause)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 12, Short.MAX_VALUE)
-                        .addComponent(buttonSelect)
+                        .addComponent(buttonHistogram)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(buttonPlot)))
+                        .addComponent(buttonPlot))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, panelDataLayout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(buttonSelect)))
                 .addContainerGap())
         );
 
-        panelDataLayout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {buttonPlot, buttonSelect});
+        panelDataLayout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {buttonHistogram, buttonPlot, buttonSelect});
 
         panelDataLayout.linkSize(javax.swing.SwingConstants.HORIZONTAL, new java.awt.Component[] {buttonDataPause, buttonReset});
 
@@ -795,10 +808,12 @@ public class AthosCameras extends Panel {
                 .addGroup(panelDataLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
                     .addComponent(buttonDataPause)
                     .addComponent(buttonPlot)
-                    .addComponent(buttonSelect)
-                    .addComponent(buttonReset))
+                    .addComponent(buttonReset)
+                    .addComponent(buttonHistogram))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 216, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(buttonSelect)
                 .addContainerGap())
         );
 
@@ -1034,8 +1049,20 @@ public class AthosCameras extends Panel {
         updateButtons();
     }//GEN-LAST:event_listRemFileValueChanged
 
+    private void buttonHistogramActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonHistogramActionPerformed
+        try {
+            if (table.getSelectedRow() >= 0) {
+                String field = (String) model.getValueAt(table.getSelectedRow(), 0);
+                showHistogram(field);
+            }
+        } catch (Exception ex) {
+            this.showException(ex);
+        }        
+    }//GEN-LAST:event_buttonHistogramActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JToggleButton buttonDataPause;
+    private javax.swing.JButton buttonHistogram;
     private javax.swing.JButton buttonOpen;
     private javax.swing.JButton buttonPlot;
     private javax.swing.JToggleButton buttonRec;
