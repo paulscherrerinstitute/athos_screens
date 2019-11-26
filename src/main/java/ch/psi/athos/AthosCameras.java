@@ -90,7 +90,7 @@ public class AthosCameras extends Panel {
             viewer.setServerUrl(App.getArgumentValue("pipeline_server"));
         }    
         if (App.hasArgument("frame_rate")){
-            imageFrameRate = Double.parseDouble(App.getArgumentValue("frame_rate"));
+                imageFrameRate = Double.parseDouble(App.getArgumentValue("frame_rate"));
         }        
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
@@ -219,6 +219,15 @@ public class AthosCameras extends Panel {
             if (hardwarePanel!=null){
                 hardwarePanel.setCamera(null);
             }
+        }
+        if (dataPipeline!=null){
+            dataPipeline.close();
+            dataPipeline = null;
+        }
+        try {
+            stopSrvRecording();
+        } catch (Exception ex) {
+            Logger.getLogger(AthosCameras.class.getName()).log(Level.SEVERE, null, ex);
         }
         if (cameraName == null) {
             return;
