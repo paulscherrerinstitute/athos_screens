@@ -9,6 +9,7 @@ import ch.psi.pshell.device.DeviceAdapter;
 import ch.psi.pshell.device.DeviceListener;
 import ch.psi.pshell.device.Readable.ReadableArray;
 import ch.psi.pshell.device.Readable.ReadableNumber;
+import ch.psi.pshell.device.ReadableRegister;
 import ch.psi.pshell.device.ReadableRegister.ReadableRegisterArray;
 import ch.psi.pshell.device.ReadableRegister.ReadableRegisterNumber;
 import ch.psi.pshell.epics.ChannelString;
@@ -46,8 +47,9 @@ import javax.swing.table.DefaultTableModel;
  *
  */
 public class AthosCameras extends Panel {
+
     final Logger logger;
-    
+
     PipelineServer imagePipeline;
     PipelineServer dataPipeline;
     PipelineServer savePipeline;
@@ -56,29 +58,29 @@ public class AthosCameras extends Panel {
     String imageInstanceName;
     String dataInstanceName;
     String cameraName;
-    String persistFile = "{context}/AthosCameras";    
+    String persistFile = "{context}/AthosCameras";
 
-    final static  String CAMERA_DEVICE_NAME = "AthosCamera";
+    final static String CAMERA_DEVICE_NAME = "AthosCamera";
     static String pipelineSuffixData = "_acd";
     static String pipelineSuffixImage = "_aci";
     static double imageFrameRate = 2.1;
-    
-    boolean dataChanged;    
+
+    boolean dataChanged;
     boolean persisting;
-    
+
     final DefaultTableModel model;
-    
+
     Map<String, JDialog> deviceDialogs = new HashMap<>();
     Map<String, Object> dataPipelineConfig;
-    
+
     String remoteData;
-    
+
     final List<String> fileHistory = new ArrayList<>();
     final List<String> fileRemHistory = new ArrayList<>();
-    
+
     ChannelString channelCameraName;
     HardwarePanel hardwarePanel;
-    
+
     public AthosCameras() {
         initComponents();
         model = (DefaultTableModel) table.getModel();
@@ -88,22 +90,21 @@ public class AthosCameras extends Panel {
         buttonSrvOpen.setEnabled(false);
         if (App.hasArgument("pipeline_server")) {
             viewer.setServerUrl(App.getArgumentValue("pipeline_server"));
-        }    
-        if (App.hasArgument("frame_rate")){
-                imageFrameRate = Double.parseDouble(App.getArgumentValue("frame_rate"));
-        }        
+        }
+        if (App.hasArgument("frame_rate")) {
+            imageFrameRate = Double.parseDouble(App.getArgumentValue("frame_rate"));
+        }
         viewer.setPipelineNameFormat("%s" + pipelineSuffixImage);
         setPersistedComponents(new Component[]{});
         remoteData = App.getArgumentValue("remote_data");
-        buttonSrvOpen.setVisible((remoteData!=null) && (new File(remoteData)).isDirectory());
-        panelSrvRec.setVisible(remoteData!=null);        
+        buttonSrvOpen.setVisible((remoteData != null) && (new File(remoteData)).isDirectory());
+        panelSrvRec.setVisible(remoteData != null);
         logger = Logger.getLogger(AthosCameras.class.getName());
         hardwarePanel = new HardwarePanel();
         viewer.getCustomPanel().add(hardwarePanel);
     }
-        
-    
-    ImageIcon getIcon(String name){
+
+    ImageIcon getIcon(String name) {
         return MainFrame.searchIcon(name);
     }
 
@@ -113,20 +114,20 @@ public class AthosCameras extends Panel {
         try {
             viewer.setPersistenceFile(Paths.get(getContext().getSetup().expandPath(persistFile)).toString());
             if (App.hasArgument("cam")) {
-                    setCamera(App.getArgumentValue("cam"));
-            } else if (App.hasArgument("channel")){
-                channelCameraName = new  ChannelString ("Channel Selector", App.getArgumentValue("channel"));
+                setCamera(App.getArgumentValue("cam"));
+            } else if (App.hasArgument("channel")) {
+                channelCameraName = new ChannelString("Channel Selector", App.getArgumentValue("channel"));
                 channelCameraName.setMonitored(true);
-                channelCameraName.addListener(new DeviceAdapter(){
-                    public void onValueChanged(Device device, Object value, Object former){
-                        SwingUtilities.invokeLater(()->{
-                            try{
+                channelCameraName.addListener(new DeviceAdapter() {
+                    public void onValueChanged(Device device, Object value, Object former) {
+                        SwingUtilities.invokeLater(() -> {
+                            try {
                                 setCamera(String.valueOf(value));
                             } catch (Exception ex) {
                                 logger.log(Level.SEVERE, null, ex);
                                 showException(ex);
-                            } 
-                        });                        
+                            }
+                        });
                     }
                 });
 
@@ -135,16 +136,16 @@ public class AthosCameras extends Panel {
                 addDevice(channelCameraName);
             }
             updateButtons();
-            startTimer(1000);            
+            startTimer(1000);
         } catch (Exception ex) {
             logger.log(Level.SEVERE, null, ex);
             showException(ex);
-        } 
+        }
     }
 
     @Override
     public void onStateChange(State state, State former) {
-        if (state==state.Closing){
+        if (state == state.Closing) {
             try {
                 stopSrvRecording();
             } catch (Exception ex) {
@@ -152,11 +153,11 @@ public class AthosCameras extends Panel {
             }
         }
     }
-    
+
     @Override
     protected void onTimer() {
-        try{
-            if (hardwarePanel!=null){
+        try {
+            if (hardwarePanel != null) {
                 hardwarePanel.onTimer();
             }
         } catch (Exception ex) {
@@ -168,59 +169,56 @@ public class AthosCameras extends Panel {
     public void onExecutedFile(String fileName, Object result) {
     }
 
-    
     //Callback to perform update - in event thread
     @Override
     protected void doUpdate() {
     }
 
-    String getImagePipeline(){
-        if (cameraName==null){
+    String getImagePipeline() {
+        if (cameraName == null) {
             return null;
         }
         return cameraName + pipelineSuffixImage;
     }
-    
-    String getDataPipeline(){
-        if (cameraName==null){
+
+    String getDataPipeline() {
+        if (cameraName == null) {
             return null;
         }
         return cameraName + pipelineSuffixData;
     }
-    
-    String getDataPipelineInstance(){
-        if (cameraName==null){
+
+    String getDataPipelineInstance() {
+        if (cameraName == null) {
             return null;
         }
         return cameraName + pipelineSuffixData + "1";
     }
-    
-    
-    void setDataFields(List<String> fields) throws IOException{
-        if (cameraName!=null){
+
+    void setDataFields(List<String> fields) throws IOException {
+        if (cameraName != null) {
             HashMap<String, Object> config = new HashMap<>();
             config.put("camera_name", cameraName);
             config.put("include", fields.toArray(new String[0]));
             dataPipeline.setInstanceConfig(config);
-            dataPipeline.savePipelineConfig(getDataPipeline(), config);        
+            dataPipeline.savePipelineConfig(getDataPipeline(), config);
             dataChanged = true;
         }
     }
 
-    
     void setCamera(String cameraName) throws IOException, InterruptedException {
-         logger.info("Initializing: " + cameraName);
-        
+        logger.info("Initializing: " + cameraName);
+
         boolean changed = !String.valueOf(cameraName).equals(this.cameraName);
         this.cameraName = cameraName;
         model.setRowCount(0);
         updateButtons();
-        if (changed){
-            if (hardwarePanel!=null){
+        if (changed) {
+            if (hardwarePanel != null) {
                 hardwarePanel.setCamera(null);
             }
         }
-        if (dataPipeline!=null){
+        if (dataPipeline != null) {
             dataPipeline.close();
             dataPipeline = null;
         }
@@ -231,25 +229,25 @@ public class AthosCameras extends Panel {
         }
         if (cameraName == null) {
             return;
-        }        
+        }
 
-        logger.info("Setting camera: " + cameraName );
-        try{
-                       
-            String pipelineName = getImagePipeline(); 
+        logger.info("Setting camera: " + cameraName);
+        try {
+
+            String pipelineName = getImagePipeline();
             logger.info("Creating pipeline: " + pipelineName);
             HashMap<String, Object> config = new HashMap<>();
             config.put("camera_name", cameraName);
             config.put("name", pipelineName);
             config.put("function", "transparent");
-            config.put("max_frame_rate" , imageFrameRate);
-            viewer.setStream(config);  
+            config.put("max_frame_rate", imageFrameRate);
+            viewer.setStream(config);
 
-            dataPipeline = new PipelineServer("image", viewer.getServerUrl()); 
+            dataPipeline = new PipelineServer("image", viewer.getServerUrl());
             dataPipeline.initialize();
             dataPipeline.assertInitialized();
             logger.info("Data pipeline initialization OK");
-            
+
             pipelineName = getDataPipeline();
             dataInstanceName = getDataPipelineInstance();
             if (!dataPipeline.getPipelines().contains(pipelineName)) {
@@ -257,109 +255,109 @@ public class AthosCameras extends Panel {
                 dataPipelineConfig = new HashMap<>();
                 dataPipelineConfig.put("camera_name", cameraName);
                 dataPipelineConfig.put("include", new String[]{"x_center_of_mass", "y_center_of_mass",
-                                                   "x_fit_mean", "y_fit_mean"});
-                dataPipelineConfig.put("image_region_of_interest", viewer.getServer().getRoi());                
+                    "x_fit_mean", "y_fit_mean"});
+                dataPipelineConfig.put("image_region_of_interest", viewer.getServer().getRoi());
                 //server.createFromConfig(config, pipelineName);
                 dataPipeline.savePipelineConfig(pipelineName, dataPipelineConfig);
-            } 
+            }
             dataPipelineConfig = dataPipeline.getConfig(pipelineName);
-            dataPipeline.start(pipelineName, dataInstanceName);                  
-            
+            dataPipeline.start(pipelineName, dataInstanceName);
+
             dataPipeline.getStream().addListener(new DeviceAdapter() {
                 @Override
                 public void onCacheChanged(Device device, Object value, Object former, long timestamp, boolean arg4) {
-                    updateData((StreamValue)value);                    
+                    updateData((StreamValue) value);
                 }
             });
-            
-            viewer.getServer().setPipelineServerListener((cfg)->{
-                try{
-                    if (cfg.containsKey("image_region_of_interest")){                        
+
+            viewer.getServer().setPipelineServerListener((cfg) -> {
+                try {
+                    if (cfg.containsKey("image_region_of_interest")) {
                         int[] roi = (int[]) cfg.get("image_region_of_interest");
-                        if (roi==null){
-                            dataPipeline.resetRoi();                           
+                        if (roi == null) {
+                            dataPipeline.resetRoi();
                         } else {
                             dataPipeline.setRoi(roi);
                         }
                         dataPipelineConfig.put("image_region_of_interest", roi);
                     }
-                } catch (Exception ex){
+                } catch (Exception ex) {
                     showException(ex);
                 }
             });
-                        
+
             updateDataPause();
-            
-            if (changed){
-                if (hardwarePanel!=null){
+
+            if (changed) {
+                if (hardwarePanel != null) {
                     hardwarePanel.setCamera(cameraName);
                 }
             }
-            
+
         } catch (Exception ex) {
             showException(ex);
         } finally {
             onTimer();
         }
     }
-    
-    String getDoubleStr(StreamValue sv, String id){
+
+    String getDoubleStr(StreamValue sv, String id) {
         return String.format("%1.4f", sv.getValue(id));
     }
-    
-    void updateData(StreamValue value){                
+
+    void updateData(StreamValue value) {
         List<String> ids = value.getIdentifiers();
         List values = value.getValues();
-        if (dataChanged){
+        if (dataChanged) {
             //Collections.sort(ids, c);
             dataChanged = false;
         }
-        if (model.getRowCount()!=ids.size()){
+        if (model.getRowCount() != ids.size()) {
             model.setRowCount(ids.size());
-            for (int i=0; i<ids.size();i++){
+            for (int i = 0; i < ids.size(); i++) {
                 model.setValueAt(ids.get(i), i, 0);
             }
         }
-        for (int i=0; i<values.size();i++){
+        for (int i = 0; i < values.size(); i++) {
             Object val = values.get(i);
-            if (val instanceof Double){
-                val =  String.format("%1.4f", val);
+            if (val instanceof Double) {
+                val = String.format("%1.4f", val);
             }
             model.setValueAt(val, i, 1);
         }
-    }    
-    
-    ch.psi.pshell.device.Readable[] getReadables(){
+    }
+
+    ch.psi.pshell.device.Readable[] getReadables() {
         ch.psi.pshell.device.Readable[] ret = dataPipeline.getStream().getReadables().toArray(new ch.psi.pshell.device.Readable[0]);
         String[] ids = dataPipeline.getStream().getIdentifiers().toArray(new String[0]);
         String[] imageIds = new String[]{"image", "width", "height"};
-        if (Arr.containsAllEqual(ids, imageIds)){
-            for  (ch.psi.pshell.device.Readable r : Arr.copy(ret)){
-                if (Arr.containsEqual(imageIds, r.getName())){
+        if (Arr.containsAllEqual(ids, imageIds)) {
+            for (ch.psi.pshell.device.Readable r : Arr.copy(ret)) {
+                if (Arr.containsEqual(imageIds, r.getName())) {
                     ret = Arr.remove(ret, r);
                 }
             }
             ret = Arr.append(ret, dataPipeline.getDataMatrix());
-        }       
+        }
         return ret;
     }
-    
+
     MonitorScan recordingScan;
-    
-    void startRecording() throws Exception{                
+
+    void startRecording() throws Exception {
         stopRecording();
-        getContext().startExecution(CommandSource.plugin, null, cameraName,null, false);
-        getContext().setExecutionPar("name", cameraName);     
+        getContext().startExecution(CommandSource.plugin, null, cameraName, null, false);
+        getContext().setExecutionPar("name", cameraName);
         getContext().setExecutionPar("open", true);
-        recordingScan=  new MonitorScan(dataPipeline.getStream(), getReadables(), -1, -1);
-        Threading.getFuture(() ->recordingScan.start()).handle((ret,t)->{
+        recordingScan = new MonitorScan(dataPipeline.getStream(), getReadables(), -1, -1);
+        Threading.getFuture(() -> recordingScan.start()).handle((ret, t) -> {
             recordingScan = null;
             return ret;
-        });     
+        });
         String fileName = getContext().getExecutionPars().getPath();
         logger.info("Start recording: " + fileName);
         fileHistory.add(fileName);
-        listFile.setModel( new javax.swing.AbstractListModel<String>() {
+        listFile.setModel(new javax.swing.AbstractListModel<String>() {
             @Override
             public int getSize() {
                 return fileHistory.size();
@@ -367,51 +365,50 @@ public class AthosCameras extends Panel {
 
             @Override
             public String getElementAt(int i) {
-                return fileHistory.get(getSize()-i-1);
+                return fileHistory.get(getSize() - i - 1);
             }
         });
         listFile.setSelectedIndex(0);
     }
-    
-    void stopRecording() throws Exception{
-        if (recordingScan != null){
-            logger.info("Stop recording");        
-            recordingScan.abort();        
+
+    void stopRecording() throws Exception {
+        if (recordingScan != null) {
+            logger.info("Stop recording");
+            recordingScan.abort();
             getContext().endExecution();
             recordingScan = null;
         }
     }
-    
-    
-    void startSrvRecording() throws Exception{               
+
+    void startSrvRecording() throws Exception {
         stopSrvRecording();
-        String fileName = Context.getInstance().getSetup().expandPath("{date}_{time}_"+cameraName, System.currentTimeMillis());       
+        String fileName = Context.getInstance().getSetup().expandPath("{date}_{time}_" + cameraName, System.currentTimeMillis());
         fileName = Paths.get(remoteData, fileName + ".h5").toString();
         logger.info("Start server recording: " + fileName);
-        
-        HashMap<String, Object> config = (HashMap<String, Object>) ((HashMap)dataPipelineConfig).clone();
+
+        HashMap<String, Object> config = (HashMap<String, Object>) ((HashMap) dataPipelineConfig).clone();
         config.put("mode", "FILE");
         config.put("file", fileName);
         config.put("layout", "FLAT");
-        config.put("localtime" , false);        
-        config.put("change" , false);      
+        config.put("localtime", false);
+        config.put("change", false);
         if (App.hasArgument("rlay")) {
-            String[] tokens =  App.getArgumentValue("rlay").split("\\|");
+            String[] tokens = App.getArgumentValue("rlay").split("\\|");
             config.put("layout", tokens[0]);
-            if (tokens.length>1){
-                config.put("localtime" , Boolean.valueOf(tokens[1]));  
+            if (tokens.length > 1) {
+                config.put("localtime", Boolean.valueOf(tokens[1]));
             }
-            if (tokens.length>2){
-                config.put("change" , Boolean.valueOf(tokens[2]));  
+            if (tokens.length > 2) {
+                config.put("change", Boolean.valueOf(tokens[2]));
             }
-        }                    
-        String instanceName = getDataPipeline()+"_save";
-        savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl()); 
+        }
+        String instanceName = getDataPipeline() + "_save";
+        savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl());
         savePipeline.createFromConfig(config, instanceName);
-        savePipeline.start(instanceName, true);       
-        
+        savePipeline.start(instanceName, true);
+
         fileRemHistory.add(fileName);
-        listRemFile.setModel( new javax.swing.AbstractListModel<String>() {
+        listRemFile.setModel(new javax.swing.AbstractListModel<String>() {
             @Override
             public int getSize() {
                 return fileRemHistory.size();
@@ -419,43 +416,86 @@ public class AthosCameras extends Panel {
 
             @Override
             public String getElementAt(int i) {
-                return fileRemHistory.get(getSize()-i-1);
+                return fileRemHistory.get(getSize() - i - 1);
             }
         });
-        listRemFile.setSelectedIndex(0);        
+        listRemFile.setSelectedIndex(0);
     }
-    
-    void stopSrvRecording() throws Exception{
-        if (savePipeline!=null){
-            logger.info("Stop server recording");          
-            savePipeline.stopInstance(getDataPipeline()+"_save");
+
+    void stopSrvRecording() throws Exception {
+        if (savePipeline != null) {
+            logger.info("Stop server recording");
+            savePipeline.stopInstance(getDataPipeline() + "_save");
             savePipeline.stop();
             savePipeline = null;
         }
     }
-    
-    void updateDataPause() throws Exception{
-        dataPipeline.setInstanceConfigValue("pause", buttonDataPause.isSelected());
-    }    
-    
 
-    void openFile(boolean server) throws Exception{
+    void updateDataPause() throws Exception {
+        dataPipeline.setInstanceConfigValue("pause", buttonDataPause.isSelected());
+    }
+
+    void openFile(boolean server) throws Exception {
         String filename = server ? listRemFile.getSelectedValue() : listFile.getSelectedValue();
         DataPanel panel = DataPanel.create(new File(filename));
-        SwingUtils.showDialog(getTopLevel(), filename, new Dimension(600,400), panel);        
+        SwingUtils.showDialog(getTopLevel(), filename, new Dimension(600, 400), panel);
     }
-    
-    void showPlot(String field) throws Exception{        
+
+    ReadableRegister geStreamDevice(String field) throws Exception {
+        Object obj = dataPipeline.getValue(field);
+        
+        if ((obj != null) && (obj.getClass().isArray() || (obj instanceof Number))) {
+            if (!field.equals("processing_parameters")) {
+                ReadableRegister dev;
+                if (obj.getClass().isArray()) {
+                    dev = new ReadableRegisterArray(new ReadableArray() {
+                        @Override
+                        public Object read() throws IOException, InterruptedException {                            
+                            return Convert.toDouble(dataPipeline.getValue(field));
+                        }
+
+                        @Override
+                        public int getSize() {
+                            return Array.getLength(dataPipeline.getValue(field));
+                        }
+                    });
+                } else {
+                    dev = new ReadableRegisterNumber(new ReadableNumber() {
+                        @Override
+                        public Object read() throws IOException, InterruptedException {
+                            return Convert.toDouble(dataPipeline.getValue(field));
+                        }
+                    });
+                }
+                DeviceListener listener = new DeviceAdapter() {
+                    @Override
+                    public void onCacheChanged(Device device, Object value, Object former, long timestamp, boolean valueChange) {
+                        if (dev.isClosed()){
+                            dataPipeline.getStream().addListener(this);    
+                        } else {
+                            dev.updateAsync();
+                        }
+                    }
+                };
+                
+                dataPipeline.getStream().addListener(listener);                
+                return dev;
+            }
+        }
+        return null;
+    }
+
+    void showPlot(String field) throws Exception {
         String title = cameraName + " " + field;
-        if (deviceDialogs.containsKey(title)){
-            JDialog dlg =  deviceDialogs.get(title);
-            if ((dlg!=null) && dlg.isShowing()){
+        if (deviceDialogs.containsKey(title)) {
+            JDialog dlg = deviceDialogs.get(title);
+            if ((dlg != null) && dlg.isShowing()) {
                 dlg.requestFocus();
                 return;
             }
         }
         DeviceListener listener;
-        Object obj = dataPipeline.getValue(field);        
+        
         if (field.equals("processing_parameters")) {
             Map<String, Object> pars = viewer.getProcessingParameters(dataPipeline.getStream().take());
             StringBuilder sb = new StringBuilder();
@@ -463,84 +503,88 @@ public class AthosCameras extends Panel {
                 sb.append(key).append(" = ").append(Str.toString(pars.get(key), 10)).append("\n");
             }
             SwingUtils.showMessage(this, "Processing Parameters", sb.toString());
-        } else if ((obj != null) && (obj.getClass().isArray() || (obj instanceof Number))) {
-            DeviceValueChart chart = new DeviceValueChart();
-            chart.setAsyncUpdates(true);
-                        
-            Device dev = null;
-            if (obj.getClass().isArray()) {
-                dev = new ReadableRegisterArray(new ReadableArray() {
+        } else{
+            Device dev = geStreamDevice(field);
+            if (dev != null) {
+                DeviceValueChart chart = new DeviceValueChart();
+                chart.setAsyncUpdates(true);
+                //dev.setPolling(1000);
+                chart.setDevice(dev);
+                JDialog dlg = SwingUtils.showDialog(AthosCameras.this.getTopLevel(), title, null, chart);
+                dlg.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
-                    public Object read() throws IOException, InterruptedException {
-                        return Convert.toDouble(dataPipeline.getValue(field));
-                    }
-
-                    @Override
-                    public int getSize() {
-                        return Array.getLength(dataPipeline.getValue(field));
-                    }
-                });
-            } else {
-                dev = new ReadableRegisterNumber(new ReadableNumber() {
-                    @Override
-                    public Object read() throws IOException, InterruptedException {
-                        return Convert.toDouble(dataPipeline.getValue(field));
+                    public void windowClosing(java.awt.event.WindowEvent e) {
+                        try {
+                            dev.close();
+                        } catch (Exception ex) {
+                            AthosCameras.this.showException(ex);
+                        }
                     }
                 });
+                deviceDialogs.put(title, dlg);
             }
-            //dev.setPolling(1000);
-            Device finalDev = dev;
-            chart.setDevice(dev); 
-            
-            listener = new DeviceAdapter() {
-                @Override
-                public void onCacheChanged(Device device, Object value, Object former, long timestamp, boolean valueChange) {
-                    finalDev.updateAsync();
-                }
-            };
-            dataPipeline.getStream().addListener(listener);
-            JDialog dlg = SwingUtils.showDialog(AthosCameras.this.getTopLevel(), title, null, chart);
-
-            deviceDialogs.put(title, dlg);
-        }         
+        }
     }
     
-    void updateButtons(){
-        boolean serveRec = savePipeline!=null;
-        boolean localRec = recordingScan!=null;
+    void showHistogram(String field) throws Exception {
+        String title = cameraName + " " + field + " Histogram";
+        if (deviceDialogs.containsKey(title)) {
+            JDialog dlg = deviceDialogs.get(title);
+            if ((dlg != null) && dlg.isShowing()) {
+                dlg.requestFocus();
+                return;
+            }
+        }
+        ReadableRegister dev = geStreamDevice(field);
+        if (dev != null) {
+            HistogramDevice hdev = new HistogramDevice(title, dev, 100, null, null, null);
+            hdev.initialize();
+            hdev.setMonitored(true);
+            HistogramDevicePanel panel = new HistogramDevicePanel();
+            panel.setDevice(hdev);
+            JDialog dlg = SwingUtils.showDialog(AthosCameras.this.getTopLevel(), title, null, panel);
+                dlg.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosing(java.awt.event.WindowEvent e) {
+                        dev.close();
+                    }
+                });
+            deviceDialogs.put(title, dlg);
+        }
+    }
+
+    void updateButtons() {
+        boolean serveRec = savePipeline != null;
+        boolean localRec = recordingScan != null;
         boolean running = cameraName != null;
-        
+
         buttonReset.setEnabled(running);
         buttonSrvRec.setEnabled(running);
-        buttonRec.setEnabled(running);               
+        buttonRec.setEnabled(running);
         buttonSelect.setEnabled(running);
-        buttonPlot.setEnabled((table.getRowCount()>0) && (table.getSelectedRowCount()==1));
-        
-        buttonOpen.setEnabled(fileHistory.size()>0);        
-        buttonSrvOpen.setEnabled((fileRemHistory.size()>0) && 
-                                 ((!serveRec) || ((listRemFile.getSelectedIndex()>0)))); 
-                
+        buttonPlot.setEnabled((table.getRowCount() > 0) && (table.getSelectedRowCount() == 1));
+
+        buttonOpen.setEnabled(fileHistory.size() > 0);
+        buttonSrvOpen.setEnabled((fileRemHistory.size() > 0)
+                && ((!serveRec) || ((listRemFile.getSelectedIndex() > 0))));
+
         buttonRec.setSelected(localRec);
         buttonStop.setEnabled(localRec);
         labelRecording.setVisible(localRec);
-                    
+
         buttonSrvRec.setSelected(serveRec);
         buttonSrvStop.setEnabled(serveRec);
-        labelSrvRecording.setVisible(serveRec);        
-                
+        labelSrvRecording.setVisible(serveRec);
+
     }
-    
-    
-    
+
     public static void main(String args[]) throws InterruptedException {
-        args = Arr.append(new String[]{ "-l", "-k", "-q", "-b", "-e", "-g", "-n", "-d", "-sbar", "-dlaf",          
-                                        "-p=ch.psi.athos.AthosCameras", 
-                                      }, 
-                          args);
+        args = Arr.append(new String[]{"-l", "-k", "-q", "-b", "-e", "-g", "-n", "-d", "-sbar", "-dlaf",
+            "-p=ch.psi.athos.AthosCameras",},
+                args);
         App.main(args);
     }
-    
-    
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -882,15 +926,15 @@ public class AthosCameras extends Panel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void buttonRecActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonRecActionPerformed
-        try{
-            if (buttonRec.isSelected()){
+        try {
+            if (buttonRec.isSelected()) {
                 startRecording();
             } else {
                 stopRecording();
             }
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
-        }  
+        }
         updateButtons();
     }//GEN-LAST:event_buttonRecActionPerformed
 
@@ -900,37 +944,37 @@ public class AthosCameras extends Panel {
     }//GEN-LAST:event_buttonStopActionPerformed
 
     private void buttonOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonOpenActionPerformed
-        try{
+        try {
             openFile(false);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonOpenActionPerformed
 
     private void buttonSelectActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSelectActionPerformed
-        try{
+        try {
             String instance = getDataPipelineInstance();
-            if (instance != null){
-                DataSelector dlg = new DataSelector(getTopLevel(), true);            
+            if (instance != null) {
+                DataSelector dlg = new DataSelector(getTopLevel(), true);
                 dlg.setLocationRelativeTo(getTopLevel());
                 dlg.set(viewer.getServerUrl(), instance);
                 dlg.setVisible(true);
-                if (dlg.getResult()){
+                if (dlg.getResult()) {
                     setDataFields(dlg.selected);
                 }
             }
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonSelectActionPerformed
 
     private void buttonPlotActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonPlotActionPerformed
-        try{
-            if (table.getSelectedRow()>=0){
+        try {
+            if (table.getSelectedRow() >= 0) {
                 String field = (String) model.getValueAt(table.getSelectedRow(), 0);
                 showPlot(field);
             }
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonPlotActionPerformed
@@ -944,13 +988,13 @@ public class AthosCameras extends Panel {
     }//GEN-LAST:event_tableKeyReleased
 
     private void buttonSrvRecActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSrvRecActionPerformed
-        try{
-            if (buttonSrvRec.isSelected()){
+        try {
+            if (buttonSrvRec.isSelected()) {
                 startSrvRecording();
             } else {
                 stopSrvRecording();
             }
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
         }
         updateButtons();
@@ -962,26 +1006,26 @@ public class AthosCameras extends Panel {
     }//GEN-LAST:event_buttonSrvStopActionPerformed
 
     private void buttonDataPauseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonDataPauseActionPerformed
-        try{
+        try {
             updateDataPause();
-        } catch (Exception ex){
+        } catch (Exception ex) {
             buttonDataPause.setSelected(false);
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonDataPauseActionPerformed
 
     private void buttonSrvOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonSrvOpenActionPerformed
-        try{
+        try {
             openFile(true);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonSrvOpenActionPerformed
 
     private void buttonResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonResetActionPerformed
-        try{
+        try {
             setCamera(cameraName);
-        } catch (Exception ex){
+        } catch (Exception ex) {
             this.showException(ex);
         }
     }//GEN-LAST:event_buttonResetActionPerformed

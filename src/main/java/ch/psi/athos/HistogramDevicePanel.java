@@ -32,7 +32,13 @@ public class HistogramDevicePanel extends DevicePanel {
     }
     
     protected void onDeviceCacheChanged(Object value, Object former, long timestamp, boolean valueChange) {
-        series.setData(getDevice().getX(), (double[]) value);
+        Histogram histo = (Histogram)value;
+        if (histo==null){
+            series.clear();
+        } else {
+            series.setData(histo.x, histo.counts);
+            plot.getAxis(Plot.AxisId.X).setRange(histo.min, histo.max);            
+        }
     }
     
     
@@ -50,11 +56,11 @@ public class HistogramDevicePanel extends DevicePanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(plot, javax.swing.GroupLayout.DEFAULT_SIZE, 315, Short.MAX_VALUE)
+            .addComponent(plot, javax.swing.GroupLayout.DEFAULT_SIZE, 440, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(plot, javax.swing.GroupLayout.DEFAULT_SIZE, 111, Short.MAX_VALUE)
+            .addComponent(plot, javax.swing.GroupLayout.DEFAULT_SIZE, 239, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 

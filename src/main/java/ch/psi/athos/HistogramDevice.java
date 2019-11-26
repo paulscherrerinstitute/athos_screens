@@ -16,54 +16,76 @@ import java.util.logging.Logger;
 /**
  *
  */
-public class HistogramDevice extends ReadonlyRegisterBase<int[]> implements ReadonlyRegisterArray<int[]> , IntegerType{
+public class HistogramDevice extends ReadonlyRegisterBase<Histogram> implements ReadonlyRegisterArray<Histogram>, IntegerType {
+
     final ReadonlyRegisterBase source;
     final int window;
-    DeviceListener sourceListener;
+    final Double min;
+    final Double max;
+    final Integer bins;
     final List<Double> samples = new ArrayList<>();
-    double[] x;
-    
-            
-    public HistogramDevice (String name, ReadonlyRegisterBase source, int window) {
+    DeviceListener sourceListener;
+
+    Histogram histogram;
+
+    public HistogramDevice(String name, ReadonlyRegisterBase source, int window, Double min, Double max, Integer bins) {
         super(name);
         setParent(source);
         this.source = source;
         this.window = window;
+        this.min = min;
+        this.max = max;
+        this.bins = bins;
     }
-    
-    public ReadonlyRegisterBase getSource() {
+
+    public HistogramDevice(String name, ReadonlyRegisterNumber source, int window, Double min, Double max, Integer bins) {
+        this(name, (ReadonlyRegisterBase) source, window, min, max, bins);
+    }
+
+    public HistogramDevice(String name, ReadonlyRegisterArray source, Double min, Double max, Integer bins) {
+        this(name, (ReadonlyRegisterBase) source, 1, min, max, bins);
+    }
+
+    public Device getSource() {
         return source;
-    }    
-    
-    public int getWindow() {
-        return window;
-    }        
-    
-    
-    public double[] getX(){
-        return x;
     }
-    
+
+    public double[] getX() {
+        return histogram.x;
+    }
+
+    public double getMin() {
+        return min;
+    }
+
+    public double getMax() {
+        return max;
+    }
+
+    public double getBins() {
+        return bins;
+    }
+
     @Override
     protected void doInitialize() throws IOException, InterruptedException {
         source.removeListener(sourceListener);
         sourceListener = null;
         super.doInitialize();
-        
+
         sourceListener = new DeviceAdapter() {
             @Override
             public void onCacheChanged(Device device, Object value, Object former, long timestamp, boolean valueChange) {
                 addSample(value);
             }
-        };        
+        };
     }
-    
+
     @Override
     protected void doSetMonitored(boolean value) {
         if (value) {
-           source.addListener(sourceListener);
+            source.addListener(sourceListener);
         } else {
-           source.removeListener(sourceListener);
+            source.removeListener(sourceListener);
         }
     }
 
@@ -72,34 +94,39 @@ public class HistogramDevice extends ReadonlyRegisterBase<int[]> implements Read
             try {
                 addSample(source.read());
             } catch (Exception ex) {
-                Logger.getLogger(HistogramDevice.class.getName()).log(Level.WARNING,  null, ex);
+                Logger.getLogger(HistogramDevice.class.getName()).log(Level.WARNING, null, ex);
             }
         }
     }
-    
+
     void addSample(Object sample) {
         if (!this.isInitialized()) {
             return;
         }
         synchronized (samples) {
-            try {                
-                samples.add(((Number)sample).doubleValue());
-                while (samples.size() > window) {
-                    samples.remove(0);
-                }        
-                Histogram histogram = Histogram.calc((double[]) Convert.toPrimitiveArray(samples), null, null, null);                        
-                setCache(histogram.counts);
-                x = histogram.x;
+            try {
+                Object data;
+                if (sample instanceof Number) {
+                    samples.add(((Number) sample).doubleValue());
+                    while (samples.size() > window) {
+                        samples.remove(0);
+                    }
+                    data = samples;
+                } else if (sample.getClass().isArray()) {
+                    data = sample;
+                } else {
+                    return;
+                }
+                setCache( Histogram.calc((double[]) Convert.toPrimitiveArray(data, Double.class), min, max, bins));
             } catch (Exception ex) {
-                Logger.getLogger(HistogramDevice.class.getName()).log(Level.WARNING,  null, ex);
+                Logger.getLogger(HistogramDevice.class.getName()).log(Level.WARNING, null, ex);
             }
         }
 
-    }        
-    
+    }
 
     @Override
-    protected int[] doRead() throws IOException, InterruptedException {
+    protected Histogram doRead() throws IOException, InterruptedException {
         if (!isMonitored()) {
             readSample();
         }
@@ -108,6 +135,6 @@ public class HistogramDevice extends ReadonlyRegisterBase<int[]> implements Read
 
     @Override
     public int getSize() {
-        return window;
+        return histogram.bins;
     }
 }

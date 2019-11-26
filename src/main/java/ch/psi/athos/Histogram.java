@@ -9,10 +9,17 @@ public class Histogram {
     
     final double[] counts;
     final double[] x;
+    final double min;
+    final double max;
+    final int bins;
     
-    Histogram (double[] counts, double[] x){
+    
+    Histogram (double[] counts, double[] x, double min, double max, int bins){
         this.counts = counts;
         this.x = x;
+        this.min = min;
+        this.max = max;
+        this.bins = bins;
     }
     
     public static Histogram calc(double[] data, Double min, Double max, Integer bins) {
@@ -33,7 +40,7 @@ public class Histogram {
         final double[] y = new double[bins];
         final double[] x = new double[bins];
         for (int i=0;i<bins; i++){
-            x[i] = binSize * i;
+            x[i] = min + binSize * i;
         }
         
         for (double d : data) {                                
@@ -42,6 +49,6 @@ public class Histogram {
                 y[bin] += 1;
             }            
         }
-        return new Histogram(y,x);
+        return new Histogram(y,x, min, max, bins);
     }
 }
