@@ -20,7 +20,8 @@ repositories {
 
 dependencies {
     testCompile 'junit:junit:4.12'
-    compile 'ch.psi:pshell:1.13.0'
+    //compile 'ch.psi:pshell:1.13.0'
+    compile files('/Users/gobbo_a/dev/pshell/pshell/build/libs/pshell-1.14.0-fat.jar')
 }
 
 jar {

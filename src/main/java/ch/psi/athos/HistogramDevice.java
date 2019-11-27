@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 public class HistogramDevice extends ReadonlyRegisterBase<Histogram> implements ReadonlyRegisterArray<Histogram>, IntegerType {
 
     final ReadonlyRegisterBase source;
-    final int window;
+    final int numberOfSamples;
     final Double min;
     final Double max;
     final Integer bins;
@@ -32,7 +32,7 @@ public class HistogramDevice extends ReadonlyRegisterBase<Histogram> implements 
         super(name);
         setParent(source);
         this.source = source;
-        this.window = window;
+        this.numberOfSamples = window;
         this.min = min;
         this.max = max;
         this.bins = bins;
@@ -108,7 +108,7 @@ public class HistogramDevice extends ReadonlyRegisterBase<Histogram> implements 
                 Object data;
                 if (sample instanceof Number) {
                     samples.add(((Number) sample).doubleValue());
-                    while (samples.size() > window) {
+                    while (samples.size() > numberOfSamples) {
                         samples.remove(0);
                     }
                     data = samples;

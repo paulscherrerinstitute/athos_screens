@@ -11,11 +11,11 @@ import ch.psi.pshell.swing.DevicePanel;
 public class HistogramDevicePanel extends DevicePanel {
 
     LinePlotSeries series;
-    
+
     public HistogramDevicePanel() {
         initComponents();
         plot.getAxis(Plot.AxisId.X).setLabel("");
-        plot.getAxis(Plot.AxisId.Y).setLabel("");
+        plot.getAxis(Plot.AxisId.Y).setLabel("");               
     }
     
     @Override
@@ -29,6 +29,13 @@ public class HistogramDevicePanel extends DevicePanel {
         super.setDevice(device);
         series = new LinePlotSeries(device.getName());
         plot.addSeries(series);
+        if (getDevice()!=null){
+            if ((getDevice().min!=null) && (getDevice().max!=null)){
+                plot.getAxis(Plot.AxisId.X).setRange(getDevice().min, getDevice().max);
+            } else {
+                plot.getAxis(Plot.AxisId.X).setAutoRange();
+            }
+        }        
     }
     
     protected void onDeviceCacheChanged(Object value, Object former, long timestamp, boolean valueChange) {
@@ -36,8 +43,8 @@ public class HistogramDevicePanel extends DevicePanel {
         if (histo==null){
             series.clear();
         } else {
-            series.setData(histo.x, histo.counts);
-            plot.getAxis(Plot.AxisId.X).setRange(histo.min, histo.max);            
+            series.setData(histo.x, histo.counts);        
+            //plot.getAxis(Plot.AxisId.X).setRange(histo.min, histo.max);     
         }
     }
     
