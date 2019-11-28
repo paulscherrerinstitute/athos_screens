@@ -7,6 +7,7 @@ import ch.psi.pshell.core.Context;
 import ch.psi.pshell.device.Device;
 import ch.psi.pshell.device.DeviceAdapter;
 import ch.psi.pshell.device.DeviceListener;
+import ch.psi.pshell.device.HistogramGenerator;
 import ch.psi.pshell.device.Readable.ReadableArray;
 import ch.psi.pshell.device.Readable.ReadableNumber;
 import ch.psi.pshell.device.ReadableRegister;
@@ -17,6 +18,7 @@ import ch.psi.pshell.imaging.Overlay;
 import ch.psi.pshell.scan.MonitorScan;
 import ch.psi.pshell.swing.DataPanel;
 import ch.psi.pshell.swing.DeviceValueChart;
+import ch.psi.pshell.swing.HistogramGeneratorPanel;
 import ch.psi.pshell.ui.App;
 import ch.psi.pshell.ui.Panel;
 import ch.psi.utils.Arr;
@@ -527,7 +529,7 @@ public class AthosCameras extends Panel {
     }
     
     void showHistogram(String field) throws Exception {
-        String title = cameraName + " " + field + " Histogram";
+        String title = cameraName + " " + field + " histogram";
         if (deviceDialogs.containsKey(title)) {
             JDialog dlg = deviceDialogs.get(title);
             if ((dlg != null) && dlg.isShowing()) {
@@ -537,18 +539,19 @@ public class AthosCameras extends Panel {
         }
         ReadableRegister dev = geStreamDevice(field);
         if (dev != null) {
-            HistogramDevice hdev = new HistogramDevice(title, dev, 100, null, null, null);
+            HistogramGenerator hdev = new HistogramGenerator(title, dev, 100, Double.NaN, Double.NaN,  100);
             hdev.initialize();
-            hdev.setMonitored(true);
-            HistogramDevicePanel panel = new HistogramDevicePanel();
+            HistogramGeneratorPanel panel = new HistogramGeneratorPanel();
             panel.setDevice(hdev);
+            //hdev.setMonitored(true);
+            hdev.setPolling(2000);
             JDialog dlg = SwingUtils.showDialog(AthosCameras.this.getTopLevel(), title, null, panel);
                 dlg.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {
                         dev.close();
                     }
-                });
+                }); 
             deviceDialogs.put(title, dlg);
         }
     }
