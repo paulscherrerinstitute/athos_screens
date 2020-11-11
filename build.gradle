@@ -1,27 +1,30 @@
-apply plugin: 'java'
-apply plugin: 'jacoco'
-apply plugin: 'application'
-apply plugin: "maven"
-apply plugin: "maven-publish"
+plugins {
+    id 'java-library'
+    id 'application'    
+    id "eclipse"
+    id "maven-publish"
+}
 
 
-version = '1.0.0' 
-
+version = '1.0.2' 
+group = 'ch.psi'
 mainClassName = 'ch.psi.athos.AthosCameras'
+
+
 ext.timestamp = new Date().format("yyMMddHHmm")
 ext.addopens = 'java.base/sun.nio.ch java.base/java.io java.desktop/sun.awt java.desktop/javax.swing.text.html java.desktop/sun.swing java.base/jdk.internal.loader'
 
 
 repositories {
     jcenter()
-    maven { url "http://maven.imagej.net/content/repositories/public/" }     
-    maven { url "https://dl.bintray.com/paulscherrerinstitute/hltools/" }    
+    maven { url "https://maven.scijava.org/content/repositories/public/" }     
+    maven { url "https://dl.bintray.com/paulscherrerinstitute/hltools/" }
 }
 
 dependencies {
     testCompile 'junit:junit:4.12'
     //compile 'ch.psi:pshell:1.13.0'
-    compile files('/Users/gobbo_a/dev/pshell/pshell/build/libs/pshell-1.14.0-fat.jar')
+    compile files('/Users/gobbo_a/dev/pshell/pshell/build/libs/pshell-1.15.0-fat.jar')
 }
 
 jar {
@@ -34,23 +37,6 @@ jar {
             'Add-Opens': addopens
         )
     }       
-}
-
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            setUniqueVersion(true)
-            repository(url: artifactoryUrlRel){
-            	authentication(userName: artifactoryUser, password: artifactoryPwd)
-            }
-            snapshotRepository(url: artifactoryUrlRel){
-            	authentication(userName: artifactoryUser, password: artifactoryPwd)
-            }
-            pom.groupId = project.group
-            pom.artifactId =  project.name
-            pom.version = version
-        }
-    }
 }
 
 task fatJar(type: Jar, dependsOn: jar) {
@@ -71,3 +57,27 @@ task fatJar(type: Jar, dependsOn: jar) {
         
     with jar
 }
+
+publishing {
+    repositories {
+        maven {
+            credentials {
+                username artifactoryUser 
+                password artifactoryPwd
+            }
+            url = artifactoryUrlRel
+        }
+    }
+
+    publications {
+        MyPublication(MavenPublication) {
+            from components.java
+            //artifact fatJar
+            groupId group
+            artifactId project.name
+            version version
+        }
+    }
+}
+
+
