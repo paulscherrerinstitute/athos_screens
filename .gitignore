@@ -1,1 +1,6 @@
-/home/
+/build
+/target
+/home
+/nbproject
+/.nb-gradle
+/.gradle
