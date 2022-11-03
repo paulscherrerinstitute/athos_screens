@@ -6,7 +6,7 @@ plugins {
 }
 
 
-version = '1.0.2' 
+version = '1.1.0' 
 group = 'ch.psi'
 mainClassName = 'ch.psi.athos.AthosCameras'
 
@@ -22,9 +22,9 @@ repositories {
 }
 
 dependencies {
-    testCompile 'junit:junit:4.12'
+    implementation 'junit:junit:4.12'
     //compile 'ch.psi:pshell:1.13.0'
-    compile files('/Users/gobbo_a/dev/pshell/pshell/build/libs/pshell-1.15.0-fat.jar')
+    implementation files('/Users/gobbo_a/dev/pshell/pshell/build/libs/pshell-1.19.0-fat.jar')
 }
 
 jar {

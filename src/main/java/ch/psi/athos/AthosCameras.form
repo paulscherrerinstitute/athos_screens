@@ -32,10 +32,10 @@
     </DimensionLayout>
   </Layout>
   <SubComponents>
-    <Component class="ch.psi.pshell.bs.StreamCameraViewer" name="viewer">
+    <Component class="ch.psi.pshell.ui.CamServerViewer" name="viewer">
       <Properties>
         <Property name="localFit" type="java.lang.Boolean" value="true"/>
-        <Property name="serverUrl" type="java.lang.String" value="localhost:8889"/>
+        <Property name="pipelineServerUrl" type="java.lang.String" value="localhost:8889"/>
         <Property name="showFit" type="boolean" value="false"/>
       </Properties>
     </Component>

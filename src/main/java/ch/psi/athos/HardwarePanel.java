@@ -31,6 +31,10 @@ public class HardwarePanel extends javax.swing.JPanel {
     
 
     public void setCamera(String cameraName) {
+        setCamera(cameraName, false);
+    }
+    
+    public void setCamera(String cameraName, boolean electrons) {
         this.cameraName = cameraName;
 
         if ((devicesInitTask != null) && (devicesInitTask.isAlive())) {
@@ -44,18 +48,16 @@ public class HardwarePanel extends javax.swing.JPanel {
             filter.close();
             filter = null;
         }
-        
-        
-        CameraType type = CameraType.getType(cameraName);
+                
         comboScreen.setModel(new DefaultComboBoxModel());
         comboScreen.setEnabled(false);
         comboFilter.setModel(new DefaultComboBoxModel());
         comboFilter.setEnabled(false);
-        panelFilter.setVisible(type == CameraType.Electrons);
-        panelScreen.setVisible(type == CameraType.Electrons); 
+        panelFilter.setVisible(electrons);
+        panelScreen.setVisible(electrons); 
         
         if (cameraName!=null){            
-            if (type == CameraType.Electrons) {
+            if (electrons) {
                 //Parallelizing initialization
                 devicesInitTask = new Thread(() -> {
                     try {

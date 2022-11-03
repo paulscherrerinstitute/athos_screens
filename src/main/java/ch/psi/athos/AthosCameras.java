@@ -1,7 +1,7 @@
 package ch.psi.athos;
 
-import ch.psi.pshell.bs.PipelineServer;
 import ch.psi.pshell.bs.StreamValue;
+import ch.psi.pshell.camserver.PipelineSource;
 import ch.psi.pshell.core.CommandSource;
 import ch.psi.pshell.core.Context;
 import ch.psi.pshell.device.Device;
@@ -20,13 +20,14 @@ import ch.psi.pshell.swing.DataPanel;
 import ch.psi.pshell.swing.DeviceValueChart;
 import ch.psi.pshell.swing.HistogramGeneratorPanel;
 import ch.psi.pshell.ui.App;
+import static ch.psi.pshell.ui.CamServerViewer.ARG_PIPELINE_SERVER;
+import ch.psi.pshell.ui.CamServerViewer.SourceSelecionMode;
 import ch.psi.pshell.ui.Panel;
 import ch.psi.utils.Arr;
 import ch.psi.utils.Convert;
 import ch.psi.utils.State;
 import ch.psi.utils.Str;
 import ch.psi.utils.Threading;
-import ch.psi.utils.swing.MainFrame;
 import ch.psi.utils.swing.SwingUtils;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -49,12 +50,13 @@ import javax.swing.table.DefaultTableModel;
  *
  */
 public class AthosCameras extends Panel {
+    public static final String ELECTRONS_TYPE = "Electrons";
 
     final Logger logger;
 
-    PipelineServer imagePipeline;
-    PipelineServer dataPipeline;
-    PipelineServer savePipeline;
+    PipelineSource imagePipeline;
+    PipelineSource dataPipeline;
+    PipelineSource savePipeline;
     //String serverUrl = "localhost:
     Overlay errorOverlay;
     String imageInstanceName;
@@ -90,9 +92,6 @@ public class AthosCameras extends Panel {
         labelSrvRecording.setVisible(false);
         buttonOpen.setEnabled(false);
         buttonSrvOpen.setEnabled(false);
-        if (App.hasArgument("pipeline_server")) {
-            viewer.setServerUrl(App.getArgumentValue("pipeline_server"));
-        }
         if (App.hasArgument("frame_rate")) {
             imageFrameRate = Double.parseDouble(App.getArgumentValue("frame_rate"));
         }
@@ -107,16 +106,19 @@ public class AthosCameras extends Panel {
     }
 
     ImageIcon getIcon(String name) {
-        return MainFrame.searchIcon(name);
+        return App.searchIcon(name);
     }
 
     //Overridable callbacks
     @Override
     public void onInitialize(int runCount) {
         try {
+            viewer.setPipelineServerUrl(App.getArgumentValue(ARG_PIPELINE_SERVER));
+            viewer.initialize(SourceSelecionMode.Single);
             viewer.setPersistenceFile(Paths.get(getContext().getSetup().expandPath(persistFile)).toString());
             if (App.hasArgument("cam")) {
                 setCamera(App.getArgumentValue("cam"));
+                viewer.setConsoleEnabled(true);
             } else if (App.hasArgument("channel")) {
                 channelCameraName = new ChannelString("Channel Selector", App.getArgumentValue("channel"));
                 channelCameraName.setMonitored(true);
@@ -245,7 +247,7 @@ public class AthosCameras extends Panel {
             config.put("max_frame_rate", imageFrameRate);
             viewer.setStream(config);
 
-            dataPipeline = new PipelineServer("image", viewer.getServerUrl());
+            dataPipeline = new PipelineSource("image", viewer.getPipelineServerUrl());
             dataPipeline.initialize();
             dataPipeline.assertInitialized();
             logger.info("Data pipeline initialization OK");
@@ -272,7 +274,10 @@ public class AthosCameras extends Panel {
                 }
             });
 
-            viewer.getServer().setPipelineServerListener((cfg) -> {
+            if (viewer.getServer()==null){
+                throw new Exception("Pipeline server not instantiated");
+            }
+            viewer.getServer().setConfigChangeListener((cfg) -> {
                 try {
                     if (cfg.containsKey("image_region_of_interest")) {
                         int[] roi = (int[]) cfg.get("image_region_of_interest");
@@ -292,7 +297,8 @@ public class AthosCameras extends Panel {
 
             if (changed) {
                 if (hardwarePanel != null) {
-                    hardwarePanel.setCamera(cameraName);
+                    boolean electrons = (cameraName!=null) && viewer.getCameraTypes(cameraName).contains(ELECTRONS_TYPE);
+                    hardwarePanel.setCamera(cameraName, electrons);
                 }
             }
 
@@ -405,7 +411,7 @@ public class AthosCameras extends Panel {
             }
         }
         String instanceName = getDataPipeline() + "_save";
-        savePipeline = new PipelineServer("Save Pipeline", viewer.getServerUrl());
+        savePipeline = new PipelineSource("Save Pipeline", viewer.getPipelineServerUrl());
         savePipeline.createFromConfig(config, instanceName);
         savePipeline.start(instanceName, true);
 
@@ -593,7 +599,7 @@ public class AthosCameras extends Panel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        viewer = new ch.psi.pshell.bs.StreamCameraViewer();
+        viewer = new ch.psi.pshell.ui.CamServerViewer();
         jPanel1 = new javax.swing.JPanel();
         panelSrvRec = new javax.swing.JPanel();
         buttonSrvRec = new javax.swing.JToggleButton();
@@ -619,7 +625,7 @@ public class AthosCameras extends Panel {
         labelRecording = new javax.swing.JLabel();
 
         viewer.setLocalFit(java.lang.Boolean.TRUE);
-        viewer.setServerUrl("localhost:8889");
+        viewer.setPipelineServerUrl("localhost:8889");
         viewer.setShowFit(false);
 
         panelSrvRec.setBorder(javax.swing.BorderFactory.createTitledBorder("Server Data Recording"));
@@ -931,7 +937,7 @@ public class AthosCameras extends Panel {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(viewer, javax.swing.GroupLayout.DEFAULT_SIZE, 411, Short.MAX_VALUE)
+                .addComponent(viewer, javax.swing.GroupLayout.PREFERRED_SIZE, 411, Short.MAX_VALUE)
                 .addGap(0, 0, 0)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, 0))
@@ -975,7 +981,7 @@ public class AthosCameras extends Panel {
             if (instance != null) {
                 DataSelector dlg = new DataSelector(getTopLevel(), true);
                 dlg.setLocationRelativeTo(getTopLevel());
-                dlg.set(viewer.getServerUrl(), instance);
+                dlg.set(viewer.getPipelineServerUrl(), instance);
                 dlg.setVisible(true);
                 if (dlg.getResult()) {
                     setDataFields(dlg.selected);
@@ -1087,6 +1093,6 @@ public class AthosCameras extends Panel {
     private javax.swing.JScrollPane scrollListFile;
     private javax.swing.JScrollPane scrollListRemFile;
     private javax.swing.JTable table;
-    private ch.psi.pshell.bs.StreamCameraViewer viewer;
+    private ch.psi.pshell.ui.CamServerViewer viewer;
     // End of variables declaration//GEN-END:variables
 }
